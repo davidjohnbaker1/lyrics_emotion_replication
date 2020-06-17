@@ -3,6 +3,8 @@
 #--------------------------------------------------
 # Run Me to Updata Datafiles
 #--------------------------------------------------
+library(tidyverse)
+#--------------------------------------------------
 source("R/data_cleaner.R")
 setwd("data/raw/experimental/")
 score_emotional_data()
@@ -36,4 +38,4 @@ experimental_data %>%
 
 #View(joined_data)
 
-write_csv(joined_data, "Master_Data.csv")
+write_csv(joined_data, "Complete_Data.csv")

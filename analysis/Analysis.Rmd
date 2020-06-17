@@ -24,9 +24,9 @@ library(patchwork)
 library(tidyverse)
 
 
-master_data <- read_csv("Master_Data.csv", col_types = cols(age = col_character()))
+df_complete <- read_csv("Complete_Data.csv", col_types = cols(age = col_character()))
 
-master_data <- master_data %>%
+df_complete <- df_complete %>%
   mutate(age = str_replace_all(string = age, pattern = "eighteen", replacement = "18")) %>%
   mutate(age = str_replace_all(string = age, pattern = "3", replacement = NA_character_)) %>%
   mutate(age = as.numeric(age))
@@ -49,8 +49,8 @@ valence_table <- tribble(
 valence_table_exact <- read_csv("data/valence_sheet.csv")
 
 
-master_data %>% 
-  left_join(valence_table_exact) -> master_data
+df_complete %>% 
+  left_join(valence_table_exact) -> df_complete
 ```
 
 
@@ -61,7 +61,7 @@ master_data %>%
 std <- function(x) sd(x)/sqrt(length(x))
 
 # Make Mean Rating Per Condition 
-(master_data %>%
+(df_complete %>%
   dplyr::select(subject, Happy:AngryStressful, Condition, Valence) %>%
   pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
   # Congrency Add Here!!
@@ -87,7 +87,7 @@ std <- function(x) sd(x)/sqrt(length(x))
   theme_minimal() -> factorial_plot)
 
 # Alternate Visualization of Above Data 
-master_data %>%
+df_complete %>%
   dplyr::select(subject, Happy:AngryStressful, Condition, Valence) %>%
   pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
   # Congrency Add Here!!
@@ -115,7 +115,7 @@ master_data %>%
 Exploring distributions of other variables in dataset. 
 
 ```{r}
-master_data %>%
+df_complete %>%
   dplyr::select(subject, Happy:AngryStressful, Condition, title) %>%
   pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
   ggplot(aes(x = rating, y = title)) +
@@ -127,7 +127,7 @@ master_data %>%
   theme_minimal()
 
 
-master_data %>%
+df_complete %>%
   dplyr::select(Familiar, title, Valence) %>%
   ggplot(aes(x = Familiar, y = title, fill = Valence)) +
   geom_density_ridges() +
@@ -150,15 +150,15 @@ Below Analysis Includes
 * [X] Correalte GMSI Emotional with Emotional Ratings
 
 ```{r}
-long_master_data <- master_data %>%
-  select(subject, Happy:AngryStressful, Condition, title, Valence) %>%
+long_df_complete <- df_complete %>%
+  dplyr::select(subject, Happy:AngryStressful, Condition, title, Valence) %>%
   pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
   # Congrency Filter 
   mutate(congru = Valence == response) %>%
   filter(congru == TRUE)
 
 factorial_anova <- ezANOVA(
-  data = long_master_data
+  data = long_df_complete
   , dv = .(rating)
   , wid = .(subject)
   , within = .(Condition, response),
@@ -179,7 +179,7 @@ Interaction needs to be clarified.
 
 ```{r}
 
-anova_model <- lmer(rating ~ Condition*response + (1|subject), data = long_master_data)
+anova_model <- lmer(rating ~ Condition*response + (1|subject), data = long_df_complete)
 anova(anova_model)
 
 # All Pairwise post-hoc are significant EXCEPT Sad-- Calm
@@ -189,7 +189,7 @@ summary(glht(anova_model, linfct =mcp(response= "Tukey"),test = adjusted(type = 
 summary(glht(anova_model, linfct =mcp(Condition= "Tukey"), test = adjusted(type = "bonferroni")))
 
 
-(long_master_data %>%
+(long_df_complete %>%
   group_by(response) %>%
   summarise(mean_rating = mean(rating),
             sd_rating = sd(rating),
@@ -208,7 +208,7 @@ summary(glht(anova_model, linfct =mcp(Condition= "Tukey"), test = adjusted(type 
        y = "Mean Rating") +
   theme_minimal() -> factorial_plot_main_effect_emotion)
 
-(long_master_data %>%
+(long_df_complete %>%
   group_by(Condition) %>%
   summarise(mean_rating = mean(rating),
             sd_rating = sd(rating),
@@ -235,7 +235,7 @@ summary(glht(anova_model, linfct =mcp(Condition= "Tukey"), test = adjusted(type 
 
 ```{r}
 # As Univariate 
-collapsed_emotion_ratings <- master_data %>%
+collapsed_emotion_ratings <- df_complete %>%
   dplyr::select(subject, Happy:AngryStressful) %>%
   pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
   group_by(subject) %>%
@@ -246,7 +246,7 @@ collapsed_emotion_ratings <- master_data %>%
             se_rating = std(rating),
             number_of_ratings = n())
 
-master_data %>%
+df_complete %>%
   dplyr::select(subject, GENERAL, EMOTIONS) %>%
   distinct() %>%
   left_join(collapsed_emotion_ratings, by = "subject") %>%
@@ -258,7 +258,7 @@ master_data %>%
        y = "Mean Rating") +
   theme_minimal()
 
-master_data %>%
+df_complete %>%
   dplyr::select(subject, GENERAL, EMOTIONS) %>%
   distinct() %>%
   left_join(collapsed_emotion_ratings, by = "subject") %>%
@@ -278,19 +278,19 @@ Better to incorporate into a bigger model and account for individual differences
 
 
 ```{r}
-master_data %>%
+df_complete %>%
   dplyr::select(subject, GENERAL, EMOTIONS) %>%
   distinct() %>%
   left_join(collapsed_emotion_ratings, by = "subject") %>%
-  select(mean_rating, GENERAL) %>%
+  dplyr::select(mean_rating, GENERAL) %>%
   cor(use = "complete.obs")
 
 
-master_data %>%
+df_complete %>%
   dplyr::select(subject, GENERAL, EMOTIONS) %>%
   distinct() %>%
   left_join(collapsed_emotion_ratings, by = "subject") %>%
-  select(mean_rating, EMOTIONS) %>%
+  dplyr::select(mean_rating, EMOTIONS) %>%
   cor(use = "complete.obs")
 ```
 
@@ -303,12 +303,12 @@ Also need to include familiarity with subject !
 ```{r}
 library(lme4)
 
-long_with_gmsi <- long_master_data %>%
-  left_join(master_data %>%
-              select(subject, GENERAL, EMOTIONS))
+long_with_gmsi <- long_df_complete %>%
+  left_join(df_complete %>%
+              dplyr::select(subject, GENERAL, EMOTIONS))
 
 
-model_a <- lmer(rating ~ Condition:response + (1 | title), data = long_master_data)
+model_a <- lmer(rating ~ Condition:response + (1 | title), data = long_df_complete)
 summary(model_a)
 0.04 / (0.04 + 6.96)
 # Shows that variation is NOT found in grouping variable of song 
@@ -317,7 +317,7 @@ qqnorm(resid(model_a))
 qqline(resid(model_a))  # pNot Good 
 # Really treating likert data like ratio and that isn't the best choice
 
-model_b <- lmer(rating ~ Condition:response + (1|title) + (1|subject), data = long_master_data)
+model_b <- lmer(rating ~ Condition:response + (1|title) + (1|subject), data = long_df_complete)
 summary(model_b)
 (.369 + .041)/(.369 + .041 + 6.621) # Variance of subject and song 
 
