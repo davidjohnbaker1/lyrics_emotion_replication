@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Lyrics and Emotion Study</title>
+    <script src="jspsych.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="plugins/jspsych-image-keyboard-response.js"></script>
+    <script src="plugins/jspsych-audio-button-response.js"></script>
+    <script src="plugins/jspsych-survey-likert.js"></script>
+    <script src="plugins/jspsych-image-button-response.js"></script>
+    <script src="plugins/jspsych-survey-text.js"></script>
+    <script src="plugins/jspsych-html-keyboard-response.js"></script>
+    <script src="plugins/jspsych-image-slider-response.js"></script>
+    <script src="plugins/jspsych-instructions.js"></script>
+    <script src="preload_audio.js"></script>
+    <link rel="stylesheet" href="css/jspsych.css"></link>
+  </head>
+  <body></body>
+  <script>
+
+/* DON'T LOOK AT MY GARBAGEEEEEEEE */ 
+
+var subject_id = prompt("Enter Participant Number");
+        jsPsych.data.addProperties({
+                          subject: subject_id,
+                });
+
+    /* create timeline */
+    var timeline = [];
+
+   /* Welcome and IRB */
+
+    var welcome_block = {
+    type: 'instructions',
+    pages: ["<p>Welcome to this experiment on music listening!</p>" +
+	    "<p> Please make sure you are using Firefox as your browser.</p>" +
+	    "<p> Please click NEXT to start the survey!</p>",
+	
+          "<p>Before collecting any data, we are required to obtain a confirmation of consent for all participants.</p>" 
+    	+ "<p>Please read the following statement: </p>" + 
+         "<p align='left'>I consent to serve as a participant in a research investigation that focuses on the memory abilities and reaction times of both children and adults. The study is entitled 'An Investigation of Cognitive Processes' sponsored by Louisiana State University and is to be conducted under the direction of Emily Elliott, Ph.D.<br>I understand that the study will involve these procedures:  In the presence of one of the members of the research team, I will engage in a task with visual (lyrics) and aural stimuli (music).  Then I will be asked to indicate my response to the visual (lyrics) and aural stimuli through a nonverbal response such as a computer keypress or mouse-click.<br>Refusal to consent to participate will involve no penalty.  I understand that I am free to withdraw my consent and discontinue participation at any time without penalty.  I will receive the agreed-upon reward for the session even if I withdraw from the study before it is complete.  I understand that this study is not expected to involve risks or harm any greater that those ordinarily encountered in daily life.  I understand also that it is not possible to identify all potential risks in an experimental procedure, but that all reasonable safeguards will be taken to minimize the known and unknown potential risks.<br>The study has been discussed with me and all my questions have been answered. I may direct additional questions regarding study specifics to Emily Elliott, (225)578-7460. If I have questions about subjects' rights or other concerns, I can contact Dennis Landin, Chairman, LSU Institutional Review Board, irb@lsu.edu, (225)578-8692. I agree to participate in the study described above and acknowledge the researchers' obligation to provide me with a copy of this consent form if signed by me.<br></p>"
+        + "<p>If you are willing to partake in this study, please press NEXT to begin the survey."],
+
+    show_clickable_nav: true
+  }
+
+    timeline.push(welcome_block);
+
+/* --------------------- EXPERIMENT LINE--------------------------------------------  */
+
+var scale_9 = ["Strongly Disagree", "","","", "Neutral","","", "", "Strongly Agree"];
+
+var scale_9f = ["Have Never Heard This Song Before", "","May Have Heard Before","", "","","Recognize, but Not Familiar", "", "Have heard This Song Many Times Before and Know it Well"];
+
+  var audio_test = {
+    type: 'audio-button-response',
+    stimulus: 'sound/soundcheck.mp3',
+    choices: ['Audio levels are OK!'],
+    prompt: "<p>Audio is currently playing.<br>Please adjust the volume of your headphones to a comfortable level.<br> If you cannot hear music, please call over the experimenter and they will help you.<br> When you are ready to begin, click NEXT.</p>"
+  }
+
+timeline.push(audio_test);
+
+   /* Instruction */
+
+    var instructions = {
+    type: 'instructions',
+    pages: ["<p>For this study, you will be listen to excerpts from 32 songs.<br> After listening to each song, you will be asked to rate the degree to which you felt that the song expressed each of four emotions.<br>You will also be asked to rate how familiar you are with each song that you heard.<br> Sometimes the songs will be presented with lyrics on screen and sometimes they will be presented without. If you do see lyrics on the screen, please engage with them while you are listening to the song. If there are not lyrics on the screen, please just listen to music. Either way, make your ratings after listening to best reflect each listening experience.<br>If you understand the instructions, please press NEXT to begin the experiment!</p>"],
+
+    show_clickable_nav: true
+  }
+
+    timeline.push(instructions);
+
+
+var block_1 = {
+	timeline: [
+	{
+		type: 'audio-button-response',
+		trial_ends_after_audio: true,
+	        response_ends_trial: false, // Change to false 
+	        stimulus: jsPsych.timelineVariable('song'),
+		choices: ['Audio Playing'],
+		prompt: jsPsych.timelineVariable('prompt')	
+	},
+	{
+		type: 'survey-likert',
+    		preamble: 'Please rate the extent to which you agree the music you just heard could be described with the following four emotions.<br>After rating the four emotions, please rate the extent that you are familiar with the music you just heard.',
+
+// I feel like this prompt should be a bit more specific to emotions (felt/percieved). 
+
+		required: true,
+    		questions: [
+		{prompt: "Happy", labels: scale_9, required: true},
+		{prompt: "Calm", labels: scale_9, required: true},
+		{prompt: "Sad", labels: scale_9, required: true},
+		{prompt: "Angry / Stressful", labels: scale_9, required: true},
+		{prompt: "Familiar", labels: scale_9f, required: true}]
+	}
+
+		],
+	timeline_variables: [
+
+			/* BATCH 1 */
+
+			// Lyrics 
+			{ song: 'sound/onMusic_Lyrics_01.mp3', prompt:"<p>Fill your days with music<br>With tender, joyful song,<br>Dream your dreams to music,<br>You’ll help your dreams along<br></p>", required: true},
+			{ song: 'sound/dancinInTheMoonlightC_Lyrics_03.mp3', prompt: "<p>We get it almost every night<br>When that moon is big and bright<br>It's a supernatural delight<br>Everybody's dancin' in the moonlight<br></p>", required: true},
+			{ song: 'sound/theCrucifixion_Lyrics_05.mp3', prompt:"<p>At the cry of the first bird<br>They began to crucify Thee, O Swan!<br></p>", required: true},
+			{ song: 'sound/everyTimeWeSayGoodbye_Lyrics_07.mp3', prompt:"<p>Ev’ry time we say goodbye,<br>I die a little<br>Ev’ry time we say goodbye,<br>I wonder why a little<br></p>", required: true},
+			{ song: 'sound/goognightMoon_Lyrics_09.mp3', prompt: "<p>Goodnight room<br>Goodnight moon<br>Goodnight cow jumping over the moon<br></p>", required: true},
+			{ song: 'sound/dream_Lyrics_11.mp3', prompt:"<p>I was a little girl alone in my little world,<br>Who dreamed of a little home for me.<br>I played pretend between the trees,<br>And fed my house guests bark and leaves,<br>And laughed in my pretty bed of green.<br>I had a dream that I could fly from the highest swing,<br>I had a dream.<br></p>", required: true},
+			{ song: 'sound/toThisWeveCome_Lyrics_13.mp3', prompt: "<p>My child is dead. John's mother is dying...<br>My own life is in danger.<br>I ask you for help, and all you give me is... papers!Papers! Papers! Papers!<br></p>", required: true},
+
+			// Melody Songs 
+			{ song: 'sound/owlAPussyCat_Melody_18.mp3', required: true},
+			{ song: 'sound/takeYouAb_Melody_20.mp3', required: true},
+			{ song: 'sound/willowSong_Melody_22.mp3', required: true} ,
+			{ song: 'sound/bambi_Melody_24.mp3', required: true},
+			{ song: 'sound/silentMoon_Melody_26.mp3', required: true},
+			{ song: 'sound/iWishYouLove_Melody_28.mp3', required: true},
+			{ song: 'sound/theCage_Melody_30.mp3', required: true},
+			{ song: 'sound/noMoreMissNice_Melody_32.mp3', required: true} 
+/* 
+
+			// Melody 	
+			{ song: 'sound/thatsAll_Lyrics_15.mp3', prompt:"<p>Running around, staying out all night<br>Taking it all instead of taking one bite<br>Living with you’s just putting me through it all of the time.<br>I could leave but I won’t go,<br>It’d be easier I know.<br>I can’t feel a thing from my head down to my toes<br>But why does it always seem to be<br>Me looking at you, you looking at me,<br>It’s always the same, it’s just a shame, that’s all.<br></p>", required: true},
+			{ song: 'sound/onMusic_Melody_17.mp3', required: true},
+			{ song: 'sound/dancinInTheMoonlightC_Melody_19.mp3', required: true},
+			{ song: 'sound/theCrucifixion_Melody_21.mp3', required: true},
+			{ song: 'sound/everyTimeWeSayGoodbye_Melody_23.mp3', required: true},
+			{ song: 'sound/goognightMoon_Melody_25.mp3', required: true},
+			{ song: 'sound/dream_Melody_27.mp3', required: true},
+			{ song: 'sound/toThisWeveCome_Melody_29.mp3', required: true},
+			{ song: 'sound/thatsAll_Melody_31.mp3', required: true},	
+
+			// Lyrics 
+
+			{ song: 'sound/owlAPussyCat_Lyrics_02.mp3', prompt: "<p>The Owl and the Pussycat went to sea<br>In a beautiful pea-green boat,<br>They took some honey, and plenty of money,<br>Wrapped up in a five pound note.<br>The Owl looked up to the stars above,<br>And sang to a small guitar<br></p>", required: true},
+			{ song: 'sound/takeYouAb_Lyrics_04.mp3', prompt: "<p>It's a lovely night, one of the first in some good time<br>And for all of my years, baby<br>I've lived by the rules of your smile<br>There's a lot to recover from that night out<br>When you leaned in and whispered, 'honey I'm trying to take you out.'<br></p>"},
+			{ song: 'sound/willowSong_Lyrics_06.mp3', prompt: "<p>So far from each other,<br>While the days pass in their emptiness away,<br>Oh my love, must it be forever,<br>Never once again to meet as on that day</p>", required: true},
+			{ song: 'sound/bambi_Lyrics_08.mp3', prompt: "<p>But I can read between the lines<br>I want to run from everything<br>But my legs won't work, it's clear to me<br>I haven't been much myself<br>And I feel like my friends are being put through this hell I'm feeling<br>I think that I'm living, if you can call it living<br>So brash and unforgiving'<br>Ruled by this vibe I'm bringing<br>Serving myself<br></p>", required: true},
+			{ song: 'sound/silentMoon_Lyrics_10.mp3', prompt:"<p>Your hands lie open in the long, fresh grass,<br>The finger-points look through like rosy blooms:<br>Your eyes smile peace.<br></p>", required: true},
+			{ song: 'sound/iWishYouLove_Lyrics_12.mp3', prompt: "<p>I wish you bluebirds in the spring,<br>To give your heart a song to sing,<br>And then a kiss, but more than this,<br>I wish you love.<br></p>", required: true},
+			{ song: 'sound/noMoreMissNice_Lyrics_16.mp3', prompt: "<p>If you think I'll take you back<br>You're in for a surprise<br>You'll never be the one for me. <br>Second time around I know<br>You gotta pay the price<br>You got to be, you're not to be. <br>If you think I'll let you play <br>This game not once, but twice<br>There will be no more Miss Nice.<br></p>", required: true},
+			{ song: 'sound/theCage_Lyrics_14.mp3', prompt:"<p>A leopard went around his cage<br>from one side back to the other side;<br>he stopped only when the keeper came around with meat;<br>A boy who had been there three hours<br>began to wonder, “Is life anything like that?”<br></p>", required: true} */
+
+    ],
+	randomize_order: true 
+}
+			
+
+var block_2 = {
+	timeline: [
+	{
+		type: 'audio-button-response',
+		trial_ends_after_audio: true,
+	        response_ends_trial: false, // Change to false 
+	        stimulus: jsPsych.timelineVariable('song'),
+		choices: ['Audio Playing'],
+		prompt: jsPsych.timelineVariable('prompt')	
+	},
+	{
+		type: 'survey-likert',
+    		preamble: 'Please rate the extent to which you agree the music you just heard could be described with the following four emotions.<br>After rating the four emotions, please rate the extent that you are familiar with the music you just heard.',
+		required: true,
+    		questions: [
+		{prompt: "Happy", labels: scale_9, required: true},
+		{prompt: "Calm", labels: scale_9, required: true},
+		{prompt: "Sad", labels: scale_9, required: true},
+		{prompt: "Angry / Stressful", labels: scale_9, required: true},
+		{prompt: "Familiar", labels: scale_9f, required: true}]
+	}
+/* Lyrics that Need to be changed: 4, 13, 16 , 15 check overall */
+		],
+	timeline_variables: [
+
+/*
+			// Lyrics 
+			{ song: 'sound/onMusic_Lyrics_01.mp3', prompt:"<p>THIS IS BLOCK A Fill your days with music<br>With tender, joyful song,<br>Dream your dreams to music,<br>You’ll help your dreams along<br></p>", required: true},
+			{ song: 'sound/dancinInTheMoonlightC_Lyrics_03.mp3', prompt: "<p>We get it almost every night<br>When that moon is big and bright<br>It's a supernatural delight<br>Everybody's dancin' in the moonlight<br></p>", required: true},
+			{ song: 'sound/theCrucifixion_Lyrics_05.mp3', prompt:"<p>At the cry of the first bird<br>They began to crucify Thee, O Swan!<br></p>", required: true},
+			{ song: 'sound/everyTimeWeSayGoodbye_Lyrics_07.mp3', prompt:"<p>Ev’ry time we say goodbye,<br>I die a little<br>Ev’ry time we say goodbye,<br>I wonder why a little<br></p>", required: true},
+			{ song: 'sound/goognightMoon_Lyrics_09.mp3', prompt: "<p>Goodnight room<br>Goodnight moon<br>Goodnight cow jumping over the moon<br></p>", required: true},
+			{ song: 'sound/dream_Lyrics_11.mp3', prompt:"<p>I was a little girl alone in my little world,<br>Who dreamed of a little home for me.<br>I played pretend between the trees,<br>And fed my house guests bark and leaves,<br>And laughed in my pretty bed of green.<br>I had a dream that I could fly from the highest swing,<br>I had a dream.<br></p>", required: true},
+			{ song: 'sound/toThisWeveCome_Lyrics_13.mp3', prompt: "<p>My child is dead. John's mother is dying...<br>My own life is in danger.<br>I ask you for help, and all you give me is... papers!Papers! Papers! Papers!<br></p>", required: true},
+
+			// Melody Songs 
+			{ song: 'sound/owlAPussyCat_Melody_18.mp3', required: true},
+			{ song: 'sound/takeYouAb_Melody_20.mp3', required: true},
+			{ song: 'sound/willowSong_Melody_22.mp3', required: true} ,
+			{ song: 'sound/bambi_Melody_24.mp3', required: true},
+			{ song: 'sound/silentMoon_Melody_26.mp3', required: true},
+			{ song: 'sound/iWishYouLove_Melody_28.mp3', required: true},
+			{ song: 'sound/theCage_Melody_30.mp3', required: true},
+			{ song: 'sound/noMoreMissNice_Melody_32.mp3', required: true} */
+
+
+			// Melody 	
+			{ song: 'sound/thatsAll_Lyrics_15.mp3', prompt:"<p>Running around, staying out all night<br>Taking it all instead of taking one bite<br>Living with you’s just putting me through it all of the time.<br>I could leave but I won’t go,<br>It’d be easier I know.<br>I can’t feel a thing from my head down to my toes<br>But why does it always seem to be<br>Me looking at you, you looking at me,<br>It’s always the same, it’s just a shame, that’s all.<br></p>", required: true},
+			{ song: 'sound/onMusic_Melody_17.mp3', required: true},
+			{ song: 'sound/dancinInTheMoonlightC_Melody_19.mp3', required: true},
+			{ song: 'sound/theCrucifixion_Melody_21.mp3', required: true},
+			{ song: 'sound/everyTimeWeSayGoodbye_Melody_23.mp3', required: true},
+			{ song: 'sound/goognightMoon_Melody_25.mp3', required: true},
+			{ song: 'sound/dream_Melody_27.mp3', required: true},
+			{ song: 'sound/toThisWeveCome_Melody_29.mp3', required: true},
+			{ song: 'sound/thatsAll_Melody_31.mp3', required: true},	
+
+			// Lyrics 
+
+			{ song: 'sound/owlAPussyCat_Lyrics_02.mp3', prompt: "<p>The Owl and the Pussycat went to sea<br>In a beautiful pea-green boat,<br>They took some honey, and plenty of money,<br>Wrapped up in a five pound note.<br>The Owl looked up to the stars above,<br>And sang to a small guitar<br></p>", required: true},
+			{ song: 'sound/takeYouAb_Lyrics_04.mp3', prompt: "<p>It's a lovely night, one of the first in some good time<br>And for all of my years, baby<br>I've lived by the rules of your smile<br>There's a lot to recover from that night out<br>When you leaned in and whispered, 'honey I'm trying to take you out.'<br></p>", required: true},
+			{ song: 'sound/willowSong_Lyrics_06.mp3', prompt: "<p>So far from each other,<br>While the days pass in their emptiness away,<br>Oh my love, must it be forever,<br>Never once again to meet as on that day</p>", required: true},
+			{ song: 'sound/bambi_Lyrics_08.mp3', prompt:"<p>But I can read between the lines<br>I want to run from everything<br>But my legs won't work, it's clear to me<br>I haven't been much myself<br>And I feel like my friends are being put through this hell I'm feeling<br>I think that I'm living, if you can call it living<br>So brash and unforgiving'<br>Ruled by this vibe I'm bringing<br>Serving myself<br></p>", required: true},
+			{ song: 'sound/silentMoon_Lyrics_10.mp3', prompt:"<p>Your hands lie open in the long, fresh grass,<br>The finger-points look through like rosy blooms:<br>Your eyes smile peace.<br></p>", required: true},
+			{ song: 'sound/iWishYouLove_Lyrics_12.mp3', prompt: "<p>I wish you bluebirds in the spring,<br>To give your heart a song to sing,<br>And then a kiss, but more than this,<br>I wish you love.<br></p>", required: true},
+			{ song: 'sound/noMoreMissNice_Lyrics_16.mp3', prompt: "<p>If you think I'll take you back<br>You're in for a surprise<br>You'll never be the one for me. <br>Second time around I know<br>You gotta pay the price<br>You got to be, you're not to be. <br>If you think I'll let you play <br>This game not once, but twice<br>There will be no more Miss Nice.<br></p>", required: true},
+			{ song: 'sound/theCage_Lyrics_14.mp3', prompt:"<p>A leopard went around his cage<br>from one side back to the other side;<br>he stopped only when the keeper came around with meat;<br>A boy who had been there three hours<br>began to wonder, “Is life anything like that?”<br></p>", required: true} 
+
+
+    ],
+	randomize_order: true 
+}
+			
+/* Push Block */ 
+
+var random_order = jsPsych.randomization.shuffle([block_1, block_2]);
+
+timeline = timeline.concat(random_order[0],random_order[1]);
+
+//timeline.push(block_1);
+
+//timeline.push(block_2);
+
+
+/* Demographic Information Here */
+
+var survey_trial_1 = {
+  type: 'survey-text',
+  questions: [{prompt: "Would you consider yourself to have normal hearing?"}]
+};
+
+timeline.push(survey_trial_1) 
+
+var survey_trial_2 = {
+  type: 'survey-text',
+  questions: [{prompt: "Is English your first langague?"}]
+};
+
+timeline.push(survey_trial_2) 
+
+var survey_trial_3 = {
+  type: 'survey-text',
+  questions: [{prompt: "Are you currently taking any medication that might have altered your performance in this experiment? If so, please list that medication here."}]
+};
+
+timeline.push(survey_trial_3) 
+
+
+
+
+
+    jsPsych.init({
+      timeline: timeline,
+      preload_audio: audio,
+      use_webaudio: false,
+      on_finish: function() {
+	jsPsych.data.get().localSave('csv','mydata.csv');	
+       // jsPsych.data.displayData();
+      }
+    });
+
+/* Online Data Save Function */
+
+/* 
+
+function saveData(name, data){
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'write_data.php'); // 'write_data.php' is the path to the php file described above.
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.send(JSON.stringify({filename: name, filedata: data}));
+}
+
+
+jsPsych.init({
+   timeline: timeline,
+      on_finish: function() { saveData(subject_id,jsPsych.data.get().csv());}
+    }); 
+
+*/
+
+  </script>
+</html>
+
+
