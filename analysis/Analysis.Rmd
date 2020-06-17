@@ -1,0 +1,347 @@
+---
+title: "Analysis"
+author: "David John Baker"
+date: "09/06/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Introduction
+
+This document provides the analysis for "Lyrics’ Emotional Influences in Songs: A Conceptual Replication of Ali and Peynircioğlu’s (2006) Study".
+The script creates both figures for the paper as well as the statistical analysis. 
+
+## Software Import 
+
+```{r}
+library(ggridges)
+library(ez)
+library(multcomp)
+library(lme4)
+library(sjPlot)
+library(patchwork)
+library(tidyverse)
+
+
+master_data <- read_csv("Master_Data.csv", col_types = cols(age = col_character()))
+
+master_data <- master_data %>%
+  mutate(age = str_replace_all(string = age, pattern = "eighteen", replacement = "18")) %>%
+  mutate(age = str_replace_all(string = age, pattern = "3", replacement = NA_character_)) %>%
+  mutate(age = as.numeric(age))
+```
+
+## EDA Viz
+
+Create reference columns for ggplot subsetting.
+
+```{r}
+# Plot of 4x2 ANOVA
+valence_table <- tribble(
+  ~valence, ~response,
+  "Positive", "Happy",
+  "Positive", "Calm",
+  "Negative", "AngryStressful",
+  "Negative", "Sad"
+)
+
+valence_table_exact <- read_csv("data/valence_sheet.csv")
+
+
+master_data %>% 
+  left_join(valence_table_exact) -> master_data
+```
+
+
+
+```{r}
+
+# Standard Deviation of Mean Function
+std <- function(x) sd(x)/sqrt(length(x))
+
+# Make Mean Rating Per Condition 
+(master_data %>%
+  dplyr::select(subject, Happy:AngryStressful, Condition, Valence) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  # Congrency Add Here!!
+  mutate(congru = Valence == response) %>%
+  filter(congru == TRUE) %>%
+  group_by(Condition, response) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n()) %>%
+  left_join(valence_table) %>%
+  mutate(response = factor(response, levels = c("Happy","Calm","AngryStressful","Sad"))) %>%
+  ggplot(aes(x = response, y = mean_rating, fill = valence)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Condition) +
+  geom_errorbar(aes(ymin = mean_rating + se_rating, ymax = mean_rating - se_rating)) + 
+  labs(title = "Mean Ratings Per Congruant Condition",
+       caption = "Error Bars represent Standard Error of Mean",
+       x = "Response Category",
+       y = "Mean Rating") +
+  theme_minimal() -> factorial_plot)
+
+# Alternate Visualization of Above Data 
+master_data %>%
+  dplyr::select(subject, Happy:AngryStressful, Condition, Valence) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  # Congrency Add Here!!
+  mutate(congru = Valence == response) %>%
+  filter(congru == TRUE) %>%
+  group_by(Condition, response) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n()) %>%
+  ggplot(aes(x = response, y = mean_rating, color = Condition)) +
+  geom_point(stat = "identity") +
+  geom_errorbar(aes(ymin = mean_rating + se_rating, ymax = mean_rating - se_rating)) + 
+  labs(title = "Mean Rating Per Condition",
+       subtitle = "Error Bars are Standard Error of Mean",
+       x = "Response Category",
+       y = "Mean Rating") +
+  theme_minimal()
+```
+
+### Data Distributions
+
+Exploring distributions of other variables in dataset. 
+
+```{r}
+master_data %>%
+  dplyr::select(subject, Happy:AngryStressful, Condition, title) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  ggplot(aes(x = rating, y = title)) +
+  geom_density_ridges() +
+  facet_wrap(~response) + 
+  labs(title = "Distributions of Emotion Ratings",
+       x = "Rating Density",
+       y = "Stimuli") +
+  theme_minimal()
+
+
+master_data %>%
+  dplyr::select(Familiar, title, Valence) %>%
+  ggplot(aes(x = Familiar, y = title, fill = Valence)) +
+  geom_density_ridges() +
+  labs(title = "Distributions of Familiar Ratings",
+       subtitle = "Most Participants are Not familiar with stimuli",
+       x = "Rating Density",
+       y = "Stimuli") +
+  theme_minimal()
+```
+
+## Replication of Pre-Registered Analysis
+
+Below Analysis Includes
+
+* [X] 4x2 ANOVA 
+* [X] Interaction Effects
+* [X] Main Effects of Lyrics and Emotion 
+* [ ] Planned Contrast of Lyrics Making Positive Worse, Negative Better 
+* [X] Correlate GMSI General with Emotional Ratings
+* [X] Correalte GMSI Emotional with Emotional Ratings
+
+```{r}
+long_master_data <- master_data %>%
+  select(subject, Happy:AngryStressful, Condition, title, Valence) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  # Congrency Filter 
+  mutate(congru = Valence == response) %>%
+  filter(congru == TRUE)
+
+factorial_anova <- ezANOVA(
+  data = long_master_data
+  , dv = .(rating)
+  , wid = .(subject)
+  , within = .(Condition, response),
+  type = 3, # Do you want to do Type III sum of Squares, doesnt change results...
+  detailed = TRUE,
+  return_aov = TRUE
+)
+
+# Check Exlusion Criteria from Pre-Registration since this is on border
+print(factorial_anova)
+```
+
+
+Analysis here shows significant omnibus test, main effect of condition as well as emotion.
+Interaction needs to be clarified. 
+
+## Within Linear Model Framework 
+
+```{r}
+
+anova_model <- lmer(rating ~ Condition*response + (1|subject), data = long_master_data)
+anova(anova_model)
+
+# All Pairwise post-hoc are significant EXCEPT Sad-- Calm
+summary(glht(anova_model, linfct =mcp(response= "Tukey"),test = adjusted(type = "bonferroni")))
+
+# Main Effect of condition significant 
+summary(glht(anova_model, linfct =mcp(Condition= "Tukey"), test = adjusted(type = "bonferroni")))
+
+
+(long_master_data %>%
+  group_by(response) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n()) %>%
+  left_join(valence_table) %>%
+  mutate(response = factor(response, levels = c("Happy","Calm","AngryStressful","Sad"))) %>%
+  ggplot(aes(x = response, y = mean_rating, fill = valence)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean_rating + se_rating, ymax = mean_rating - se_rating)) + 
+  labs(title = "Mean Rating Per Condition",
+       subtitle = "Error Bars are Standard Error of Mean",
+       x = "Response Category",
+       y = "Mean Rating") +
+  theme_minimal() -> factorial_plot_main_effect_emotion)
+
+(long_master_data %>%
+  group_by(Condition) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n()) %>%
+  ggplot(aes(x = Condition, y = mean_rating)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean_rating + se_rating, ymax = mean_rating - se_rating)) + 
+  labs(title = "Mean Rating Per Lyrics Condition",
+       subtitle = "Error Bars are Standard Error of Mean",
+       x = "Response Category",
+       y = "Mean Rating") +
+  theme_minimal() -> main_effect_lyrics)
+
+```
+
+* [ ] Still Need Pairs Contrast 
+
+
+## GMSI Correlations
+
+
+```{r}
+# As Univariate 
+collapsed_emotion_ratings <- master_data %>%
+  dplyr::select(subject, Happy:AngryStressful) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  group_by(subject) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n())
+
+master_data %>%
+  dplyr::select(subject, GENERAL, EMOTIONS) %>%
+  distinct() %>%
+  left_join(collapsed_emotion_ratings, by = "subject") %>%
+  ggplot(aes(x = GENERAL, y = mean_rating)) +
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(title =  "Average Rating by General Scale",
+       x = "GMSI General Score",
+       y = "Mean Rating") +
+  theme_minimal()
+
+master_data %>%
+  dplyr::select(subject, GENERAL, EMOTIONS) %>%
+  distinct() %>%
+  left_join(collapsed_emotion_ratings, by = "subject") %>%
+  ggplot(aes(x = EMOTIONS, y = mean_rating)) +
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(title =  "Average Rating by Emotion Scale",
+       x = "GMSI Emotion Score",
+       y = "Mean Rating") +
+  theme_minimal()
+
+```
+
+Don't know if it is good here to use ratings of four conditions as predictor of either of these. 
+Better to incorporate into a bigger model and account for individual differences in musical training in the context of everything else.
+
+
+
+```{r}
+master_data %>%
+  dplyr::select(subject, GENERAL, EMOTIONS) %>%
+  distinct() %>%
+  left_join(collapsed_emotion_ratings, by = "subject") %>%
+  select(mean_rating, GENERAL) %>%
+  cor(use = "complete.obs")
+
+
+master_data %>%
+  dplyr::select(subject, GENERAL, EMOTIONS) %>%
+  distinct() %>%
+  left_join(collapsed_emotion_ratings, by = "subject") %>%
+  select(mean_rating, EMOTIONS) %>%
+  cor(use = "complete.obs")
+```
+
+
+## Include Musicality in Mixed Effects
+
+Can also add in information at the level of song !
+Also need to include familiarity with subject ! 
+
+```{r}
+library(lme4)
+
+long_with_gmsi <- long_master_data %>%
+  left_join(master_data %>%
+              select(subject, GENERAL, EMOTIONS))
+
+
+model_a <- lmer(rating ~ Condition:response + (1 | title), data = long_master_data)
+summary(model_a)
+0.04 / (0.04 + 6.96)
+# Shows that variation is NOT found in grouping variable of song 
+plot(model_a)
+qqnorm(resid(model_a))
+qqline(resid(model_a))  # pNot Good 
+# Really treating likert data like ratio and that isn't the best choice
+
+model_b <- lmer(rating ~ Condition:response + (1|title) + (1|subject), data = long_master_data)
+summary(model_b)
+(.369 + .041)/(.369 + .041 + 6.621) # Variance of subject and song 
+
+# Wont Converge If Add More random effects 
+
+
+```
+
+```{r}
+
+# Visualise random effects 
+(re.effects <- plot_model(model_b, type = "re", show.values = TRUE, title = "Fixed Effects"))
+
+summary(model_b)
+
+plot_model(model_b, show.values = TRUE, title = "Fixed Effects of Multi-Level Linear Model") +
+  theme_minimal() -> multi_level_plot
+
+
+
+factorial_plot  + multi_level_plot
+
+```
+
+* https://learningstatisticswithr.com/book/anova2.html
+
+
