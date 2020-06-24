@@ -51,6 +51,9 @@ valence_table_exact <- read_csv("data/valence_sheet.csv")
 
 df_complete %>% 
   left_join(valence_table_exact) -> df_complete
+
+df_complete %>%
+  select(Happy)
 ```
 
 
