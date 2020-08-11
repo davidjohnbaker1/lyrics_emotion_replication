@@ -48,6 +48,8 @@ grim_test <- function(sample_size, likert_start, likert_end, means){
   df
 }
 
+sd(table_1$means)
+
 table_1 <- grim_test(32, 1, 9, table_1_values)
 
 
