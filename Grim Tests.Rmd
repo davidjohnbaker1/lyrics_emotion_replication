@@ -1,0 +1,115 @@
+---
+title: "GRIM Tests"
+author: "David John Baker"
+date: "24/09/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This markdown file contains scripts for supplmentary matrial investigating the GRIM test on tables used in the original paper. 
+
+```{r}
+# Function for Computing GRIM Tests
+
+
+table_1_values <- c(7.85, 8.18, 6.62, 6.91, 
+                    5.79, 5.20, 6.51, 6.11, 
+                    7.75, 7.95, 4.05, 5.41, 
+                    5.00, 4.41, 6.08, 6.59)
+
+
+sd(table_1_values)
+
+# Function for Computing GRIM Tests
+
+grim_test <- function(sample_size, likert_start, likert_end, means){
+  integer_values <- sample_size * means
+  bottom <- round(floor(integer_values)/ sample_size, 2)
+  top <- round(ceiling(integer_values)/ sample_size, 2)
+  df <- data.frame(bottom, top, means)
+  df$sample_size <- sample_size
+  df$possible <- ifelse(df$bottom == means | df$top == means, yes = TRUE,no = FALSE)
+  df
+  }
+
+
+table_1 <- grim_test(32, 1, 9, table_1_values)
+
+
+table_1$gender <- rep(c("woman","man"),8)
+table_1$lyrics <- rep(c("no lyric", "no lyric", "lyric","lyric"),4)
+table_1$emotions <- c(rep("happy",4), rep("sad",4), rep("calm",4), rep("angry",4))
+
+table_1 <- table_1 %>%
+  tibble() %>%
+    mutate(valence = case_when(
+    emotions == "happy" ~ "positive",
+    emotions == "calm" ~ "positive",
+    emotions == "angry" ~ "negative",
+    emotions == "sad" ~ "negative"
+  ))
+
+table_1 %>%
+  arrange(emotions, lyrics)
+
+mean(table_1$possible)
+
+
+possible_bar_chart <- table_1 %>%
+  tibble() %>%
+  mutate(id = row_number()) %>%
+  mutate(id2 = paste(gender, emotions, lyrics)) %>%
+  ggplot(aes(y = means, 
+             x = id2, 
+             fill  = emotions)) +
+  geom_bar(stat = "identity") +
+  stat_summary(fun = sum, geom="text", aes(label=possible), vjust = 0) +
+  theme_minimal() +
+  coord_flip() +
+  labs(title = "A+P Table 1 Possible Values")
+## Unit Tests 
+
+table_1 %>%
+  select(means, possible) %>%
+  arrange(means)
+
+possible_bar_chart
+
+table_2_values <- c(6.94, 6.42, 4.11, 
+                    7.00, 5.73, 5.50,
+                    6.47, 5.81, 3.98,
+                    6.25, 4.81, 3.41)
+
+table_3_values <- c(5.26, 5.64, 4.69,
+                    3.63, 3.74, 2.57,
+                    4.61, 5.74, 4.99, 
+                    3.29, 2.95, 2.19)
+
+table_4_values <- c(5.03, 5.11, 4.54, 4.31, 
+                    3.53, 3.42, 2.86, 2.45,
+                    6.38,  5.18, 4.40, 4.57, 
+                    3.13, 3.22, 2.57, 2.30)
+
+
+# Add what ones  are true and  not 
+
+
+table_1 <- grim_test(32, 1, 9, table_1_values)
+table_2 <- grim_test(32, 1, 9, table_2_values)
+table_3 <- grim_test(36, 1, 9, table_3_values)
+table_4 <- grim_test(36, 1, 9, table_4_values)
+
+table_1 %>%
+  summarise(m_poss = mean(possible))
+
+table_2 %>%
+  summarise(m_poss = mean(possible))
+
+table_3 %>%
+  summarise(m_poss = mean(possible))
+
+table_4 %>%
+  summarise(m_poss = mean(possible))
+```
+

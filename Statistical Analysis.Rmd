@@ -1,0 +1,548 @@
+---
+title: "Statistical Analysis"
+author: "David John Baker"
+date: "24/09/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This document provides the analysis for "Lyrics’ Emotional Influences in Songs: A Conceptual Replication of Ali and Peynircioğlu’s (2006) Study".
+The script creates both figures for the paper as well as the statistical analysis.
+
+```{r}
+# Libraries Needed 
+library(ggridges)
+library(ez)
+library(multcomp)
+library(lme4)
+library(sjPlot)
+library(patchwork)
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(gt)
+
+```
+
+## Results to Replicate
+
+* FIGURE 1: Replicate A+P 2006 Analysis of Experiment 1 and current experimental data
+  - put main effects next to one another
+  - add statistical significance 
+
+```{r figureone}
+#-------------------------------------------------------------------------------------------------
+# AP Data Import 
+table_1_values <- c(7.85, 8.18, 6.62, 6.91, 
+                    5.79, 5.20, 6.51, 6.11, 
+                    7.75, 7.95, 4.05, 5.41, 
+                    5.00, 4.41, 6.08, 6.59)
+
+
+sd(table_1_values)
+# Function for Computing GRIM Tests
+
+grim_test <- function(sample_size, likert_start, likert_end, means){
+  integer_values <- sample_size * means
+  bottom <- round(floor(integer_values)/ sample_size, 2)
+  top <- round(ceiling(integer_values)/ sample_size, 2)
+  df <- data.frame(bottom, top, means)
+  df$sample_size <- sample_size
+  df$possible <- ifelse(df$bottom == means | df$top == means, yes = TRUE,no = FALSE)
+  df
+  }
+
+table_1 <- grim_test(32, 1, 9, table_1_values)
+
+# Add in Factors for Original Data 
+table_1$gender <- rep(c("Woman","Man"),8)
+table_1$lyrics <- rep(c("No Lyric", "No Lyric", "Lyric","Lyric"),4)
+table_1$emotions <- c(rep("Happy",4), rep("Sad",4), rep("Calm",4), rep("Angry",4))
+
+# Add in Contrast for Valence 
+table_1 <- table_1 %>%
+  tibble() %>%
+    mutate(valence = case_when(
+    emotions == "Happy" ~ "Positive",
+    emotions == "Calm" ~ "Positive",
+    emotions == "Angry" ~ "Negative",
+    emotions == "Sad" ~ "Negative"
+  ))
+
+# Values that match Table 1 , A + P 2006
+table_1$emotions <- factor(table_1$emotions, levels = c("Happy","Calm","Angry","Sad"))
+
+table_1
+
+#-------------------------------------------------------------------------------------------------
+# LSU Data Import 
+df_complete <- read_csv("Complete_Data.csv", 
+                        col_types = cols(age = col_character()))
+
+df_complete <- df_complete %>%
+  mutate(age = str_replace_all(string = age, pattern = "eighteen", replacement = "18")) %>%
+  mutate(age = str_replace_all(string = age, pattern = "3", replacement = NA_character_)) %>%
+  mutate(age = as.numeric(age))
+
+valence_table_exact <- read_csv("data/valence_sheet.csv")
+
+df_complete %>% 
+  left_join(valence_table_exact) %>%
+  rename(track_valence = Valence) -> df_complete
+
+df_complete <- df_complete %>%
+   mutate(global_valence = case_when(
+    track_valence == "Happy" ~ "Positive",
+    track_valence == "Calm" ~ "Positive",
+    track_valence == "Angry" ~ "Negative",
+    track_valence == "Sad" ~ "Negative"
+  )) 
+
+gender_table <- df_complete %>%
+  select(subject, gender) %>%
+  distinct() %>%
+  mutate(gender = str_to_lower(gender)) %>%
+  mutate(cleaned_gender = case_when(
+    gender == "cis male" ~ "male",
+    gender == "false" ~ NA_character_,
+    gender == "female" ~ "female",
+    gender == "femalen" ~ "female",
+    gender == "male" ~ "male",
+    gender == "malen" ~ "male"
+  )) %>% 
+  select(subject,cleaned_gender)
+  
+#---------------------------------------------------------------------------------------------------
+# Main Effect of Intended Emotion
+table_1 %>%
+  group_by(emotions) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = emotions)) +
+  geom_bar(stat = "identity") +
+  coord_cartesian(ylim = c(1,11)) +
+  scale_y_continuous( breaks = seq(1,9,1)) +
+  geom_bracket(
+    xmin = c("Happy", "Happy","Happy"), xmax = c("Calm","Angry", "Sad"),
+    y.position = c(8, 9, 10), label = c("t(126) = 5.95, p <.05 * ", "t(126) = 7.09, p <.05 *","t(126) = 3.92, p <.05 *"),
+    tip.length = 0.05) +
+  labs(title = "Main Effect of Intended Emotion",
+       subtitle = "F (3, 90) = 20.43, MSE = 1.84, p < .001",
+       x = "Intended Emotion",
+       y = "Mean") +
+  theme_minimal() -> me_intended_emotion
+
+me_intended_emotion
+
+# Main Effect of Valence
+table_1 %>%
+  group_by(valence) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = valence)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(breaks = seq(1,9,1)) +
+  coord_cartesian(ylim = c(1,9)) +
+    geom_bracket(
+    xmin = c("Negative"), xmax = c("Positive"),
+    y.position = c(8), label = c("p < .001 ***"),
+    tip.length = 0.05) +
+  labs(title = "Main Effect of Valence (Contrast)", subtitle = "F (1, 30) = 21.81, MSE = 1.68, p < .001", y = "Mean") +
+  theme_minimal() -> me_valence
+
+me_valence
+
+# Main Effect of Lyrics 
+table_1 %>%
+  group_by(lyrics) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = lyrics)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous( breaks = seq(1,9,1)) +
+  coord_cartesian(ylim = c(1,9)) +
+    geom_bracket(
+    xmin = c("Lyric"), xmax = c("No Lyric"),
+    y.position = c(8), label = c("p < .01 **"),
+    tip.length = 0.05) +
+  labs(title = "Main Effect of Lyrics", subtitle = "F (1, 30) = 11.81, MSE = 1.13, p < .01", y = "Mean") +
+  theme_minimal()  -> me_lyric
+
+me_lyric
+
+# NO Main Effect of Gender
+# NOT Included in Manuscript 
+table_1 %>%
+  group_by(gender) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = gender)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Main Effect of Gender") +
+  theme_minimal() -> me_gender
+
+library(gridExtra)
+
+foo <- grid.arrange(me_lyric, me_valence, nrow = 1)
+
+#figure_1
+grid.arrange(me_intended_emotion, foo, nrow = 2)
+
+# saved as 900 x 600
+
+#------------------------------------------------------------------------------------
+
+# Standard Deviation of Mean Function
+std <- function(x) sd(x)/sqrt(length(x))
+
+# Create Long Data, Subset Only Congruancy Conditions 
+df_congruent <- df_complete %>%
+  select(subject, Happy:AngryStressful, Condition, track_valence, global_valence) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  # Congrency Add Here!!
+  mutate(congru = track_valence == response) %>%
+  filter(congru == TRUE)
+
+df_congruent$response <- factor(df_congruent$response, levels = c("Happy","Calm","AngryStressful","Sad"))
+
+#---------------------------------------------------------------------------------------------------
+# Main Effect of Intended Emotion
+me_intended_emotion_lsu <- df_congruent %>%
+  group_by(response) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = response, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  coord_cartesian(ylim = c(1,12)) +
+  scale_y_continuous( breaks = seq(1,9,1)) +
+  # Significant Ratings Taken From Analysis Below 
+  geom_bracket(
+    xmin = c("Happy", "Happy","Happy","Calm","AngryStressful"), 
+    xmax = c("Calm","AngryStressful","Sad","AngryStressful","Sad"),
+    y.position = c(9, 10, 11,8,9), label = c("***", "***","***","***","***"),
+    tip.length = 0.05) +
+    geom_errorbar(aes(ymin = response_mean + response_std, 
+                      ymax = response_mean - response_std)) + 
+  labs(title = "Main Effect of Emotion",
+       x = "Emotion", y = "Mean Response")
+
+me_intended_emotion_lsu
+
+# Main Effect of Valence
+me_valence_lsu <- df_congruent %>%
+  group_by(global_valence) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  filter(!is.na(global_valence)) %>%
+  ggplot(aes(x = global_valence, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  coord_cartesian(ylim = c(1,9)) +
+  scale_y_continuous( breaks = seq(1,9,1)) +
+  geom_bracket(
+    xmin = c("Negative"), 
+    xmax = c("Positive"),
+    y.position = c(7), label = c("***"),
+    tip.length = 0.05) +
+  geom_errorbar(aes(ymin = response_mean + response_std, 
+                   ymax = response_mean - response_std)) + 
+  theme_minimal() +
+  labs(title = "Main Effect of Valence",  x = "Emotion", y = "Mean Response")
+
+me_valence_lsu
+
+# Main Effect of Lyrics
+me_lyrics_lsu <- df_congruent %>%
+  group_by(Condition) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = Condition, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  coord_cartesian(ylim = c(1,9)) +
+  scale_y_continuous( breaks = seq(1,9,1)) +
+  geom_bracket(
+    xmin = c("Lyrics"), 
+    xmax = c("Melody"),
+    y.position = c(7), label = c("***"),
+    tip.length = 0.05) +
+  theme_minimal() +
+  geom_errorbar(aes(ymin = response_mean + response_std, 
+                    ymax = response_mean - response_std)) + 
+  labs(title = "Main Effect of Condition", y = "Mean Response")
+
+me_lyrics_lsu
+
+# Main Effect of Gender 
+me_gender_lsu <- df_congruent %>%
+  left_join(gender_table) %>%
+  group_by(cleaned_gender) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = cleaned_gender, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  geom_errorbar(aes(ymin = response_mean + response_std, 
+                    ymax = response_mean - response_std)) + 
+  labs(title = "Main Effect of Gender")
+
+
+conditions <- grid.arrange(me_lyrics_lsu, me_valence_lsu, nrow = 1)
+
+grid.arrange(me_intended_emotion_lsu, conditions, nrow = 2)
+
+
+
+
+#(lsu_panel <- (me_intended_emotion_lsu | me_valence_lsu) / (me_lyrics_lsu | me_gender_lsu))
+
+
+```
+
+```{r}
+# Big Plots of LSU 
+# Make Mean Rating Per Condition 
+df_congruent  %>%
+  left_join(gender_table) %>%
+  group_by(Condition, response) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n()) %>%
+  mutate(response = factor(response, levels = c("Happy","Calm","AngryStressful","Sad"))) %>%
+  mutate(valence = case_when(
+    response == "AngryStressful" ~ "Negative",
+    response == "Sad" ~ "Negative",
+    response == "Happy" ~ "Positive",
+    response == "Calm" ~ "Positive"
+    
+  )) %>%
+  ggplot(aes(x = response, y = mean_rating, fill = valence)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Condition) +
+  geom_errorbar(aes(ymin = mean_rating + se_rating, ymax = mean_rating - se_rating)) + 
+  labs(title = "Mean Ratings Per Congruant Condition",
+       caption = "Error Bars represent Standard Error of Mean",
+       x = "Response Category",
+       y = "Mean Rating") +
+  theme_minimal()
+
+
+```
+
+## Analysis
+
+### Data Cleaning 
+
+
+### Hypothesis 1
+
+Our first analysis sought to re-create our 4 x 2 factorial repeated measures ANOVA.
+
+```{r}
+# As ANOVA 
+df_replicate_anova <- df_congruent
+
+factorial_anova_direct_replication <- ezANOVA(
+  data = df_replicate_anova
+  , dv = .(rating)
+  , wid = .(subject)
+  , within = .(Condition, response),
+  type = 3, # Do you want to do Type III sum of Squares, doesnt change results...
+  detailed = TRUE,
+  return_aov = TRUE
+)
+
+# Check Exlusion Criteria from Pre-Registration since this is on border
+print(factorial_anova_direct_replication)
+
+apaTables::apa.ezANOVA.table(factorial_anova_direct_replication, filename = "tables/table_1.doc")
+
+
+library(lmerTest)
+library(multcomp)
+
+hypothesis_1_model <- lmer(rating ~ Condition*response + (1|subject), data = df_replicate_anova)
+
+# ANOVA Table 
+anova(hypothesis_1_model)
+
+# Linear Model Output 
+summary(hypothesis_1_model)
+
+# Main Effects of Emotions
+summary(glht(hypothesis_1_model, linfct=mcp(response = "Tukey")), test = adjusted(type = "bonferroni"))
+
+```
+
+The results of the repeated measures 4 x 2 factorial ANOVA produced no significant interaction effect, but did yield a significant main effect of both lyrics and condition.
+Full details of the test are reported in Table 1.
+
+### Hypothesis 2
+
+Correlational analysis of musical training.
+
+```{r}
+df_complete %>%
+  select(subject, MUSICAL, EMOTIONS) %>%
+  distinct() -> gmsi_table
+
+df_congruent %>%
+  left_join(gmsi_table) -> emotion_rating_table
+
+gmsi_cor <- function(data, gmsi_tab, emotion, gmsi){
+  data %>%
+    filter(response == emotion) %>%
+    select(subject, rating, gmsi) %>%
+    group_by(subject) %>%
+    summarise(avg_emo = mean(rating)) %>%
+    left_join(gmsi_tab) %>%
+    select(avg_emo, gmsi)
+}
+
+#--------------------------------------------------------
+# Musical 
+happy_musical <- gmsi_cor(emotion_rating_table, gmsi_table, "Happy", "MUSICAL")
+cor.test(happy_musical$avg_emo, happy_musical$MUSICAL)
+
+sad_musical <- gmsi_cor(emotion_rating_table, gmsi_table, "Sad", "MUSICAL")
+cor.test(sad_musical$avg_emo, happy_musical$MUSICAL)
+
+calm_musical <- gmsi_cor(emotion_rating_table, gmsi_table, "Calm", "MUSICAL")
+cor.test(calm_musical$avg_emo, happy_musical$MUSICAL)
+
+angry_musical <- gmsi_cor(emotion_rating_table, gmsi_table, "AngryStressful", "MUSICAL")
+cor.test(angry_musical$avg_emo, happy_musical$MUSICAL)
+#--------------------------------------------------------
+# Emotional
+happy_emotions<- gmsi_cor(emotion_rating_table, gmsi_table, "Happy", "EMOTIONS")
+cor.test(happy_emotions$avg_emo, happy_emotions$EMOTIONS)
+
+sad_emotions <- gmsi_cor(emotion_rating_table, gmsi_table, "Sad", "EMOTIONS")
+cor.test(sad_emotions$avg_emo, sad_emotions$EMOTIONS)
+
+calm_emotions <- gmsi_cor(emotion_rating_table, gmsi_table, "Calm", "EMOTIONS")
+cor.test(calm_emotions$avg_emo, calm_emotions$EMOTIONS)
+
+angry_emotions <- gmsi_cor(emotion_rating_table, gmsi_table, "AngryStressful", "EMOTIONS")
+cor.test(angry_emotions$avg_emo, angry_emotions$EMOTIONS)
+
+
+# Make 4 x 2 Panel with Linear Models 
+library(ggpubr)
+library(purrr)
+
+# Make Data 
+emotion_rating_table %>%
+  select(subject, rating, response) %>%
+  group_by(subject,response) %>%
+  summarise(avg_rating = mean(rating)) %>%
+  left_join(gmsi_table) %>%
+  ungroup(subject, response) %>%
+  mutate(z_musical = scale(MUSICAL), z_emotions = scale(EMOTIONS)) %>%
+  pivot_longer(cols = z_musical:z_emotions, names_to = "Emotion", values_to = "GMSI") %>%
+  group_by(Emotion, response) %>%
+  nest() %>%
+  mutate(Mod = map(data, ~lm(avg_rating ~ GMSI, data = .x))) %>%
+  mutate(R2 = map_dbl(Mod, ~round(summary(.x)$r.squared, 3)),
+         p = map_dbl(Mod, ~round(summary(.x)$coefficients[8], 4))) -> correl_sum_stats
+
+correl_sum_stats %>%
+  select(response, Emotion, R2, p)
+
+#%>%
+#  select(response, Emotion, R2, p) -> correlation_summary_stats
+
+emotion_rating_table %>%
+  select(subject, rating, response) %>%
+  group_by(subject,response) %>%
+  summarise(avg_rating = mean(rating)) %>%
+  left_join(gmsi_table) %>%
+  ungroup(subject, response) %>%
+  mutate(`Musical GMSI` = scale(MUSICAL), `Emotions GMSI` = scale(EMOTIONS)) %>%
+  pivot_longer(cols = `Musical GMSI`:`Emotions GMSI`, names_to = "Emotion", values_to = "GMSI") %>%
+  group_by(Emotion, response) %>%
+# Make Plot 
+  ggplot(aes(x = avg_rating, y = GMSI, color = Emotion)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  facet_wrap(~response) +
+  labs(title = "Average Rating Per Emotion vs GMSI", x = "Average Rating", y = "GMSI Score of Individual") -> cor_plots_gmsi
+
+cor_plots_gmsi
+
+#ggsave(filename = "img/cor_plots.png", cor_plots_gmsi, units = "cm", height = 10, width = 20)  
+
+```
+
+
+Expanding for Mixed Effects
+
+```{r}
+
+df_congruent %>%
+  left_join(gmsi_table)  -> model_2_data
+
+
+hypothesis_2_model <- lmerTest::lmer(rating ~ Condition*response + MUSICAL + EMOTIONS + (1|subject), data = model_2_data)
+
+summary(hypothesis_2_model)
+
+sjPlot::tab_model(hypothesis_2_model)
+```
+
+
+### Hypothesis 3
+
+```{r}
+hypothesis_3_model <- lmerTest::lmer(rating ~ global_valence + (1|subject), data = df_replicate_anova)
+
+# ANOVA Table 
+anova(hypothesis_3_model)
+
+# Linear Model Output 
+summary(hypothesis_3_model)
+
+
+```
+
+### Familiarity Check
+
+```{r}
+df_complete %>%
+  select(subject, MUSICAL, EMOTIONS, Familiar) %>%
+  distinct() -> gmsi_table_2
+
+df_congruent %>%
+  left_join(gmsi_table_2) -> max_model_data
+
+hypothesis_4_model <- lmerTest::lmer(rating ~ Condition*response + MUSICAL + EMOTIONS + Familiar + (1|subject), data = max_model_data)
+
+
+# ANOVA Table 
+anova(hypothesis_4_model)
+
+# Linear Model Output 
+summary(hypothesis_4_model)
+
+tab_model(hypothesis_4_model)
+```
+
