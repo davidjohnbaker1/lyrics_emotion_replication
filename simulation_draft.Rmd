@@ -7,218 +7,229 @@ editor_options:
   chunk_output_type: console
 ---
 
-This document explores the extent that a simulation would have provided insight into the power needed for detecting the effects in our emotion study.
-I did it so that I can better understand how simulations work and based it on this [blog post by Nick HK](https://nickch-k.github.io/EconometricsSlides/Week_08/Power_Simulations.html).
+This document explores the extent that a simulation would have provided insight into the power needed for detecting the effects in our this replication study.
 
-Going to be checking for
+## Create Data 
 
-* Small, medium, and large effects in this Mixed ANOVA
-* What variatons we could have expected.
-* Sample size 
+We first create a dataset that shares similar properties to A+P (2006).
+Note we only focus on the Emotions and Lyrics factors and exclude Gender.
+We also note that this data is run assuming normal, continous undelrying distributions rather than Likert, integer data. 
 
-The money question is simple langauge is:
-
-> Given this design we found in Experiment I, if we teleported back in time and knew we were expecting small, medium, and large effects in our 4x2x2 ANOVA, how much data would we have to collected to find each permutation of this? 
-
-## Step One: Make Up the Data We Want
-
-* Emotion
-* Lyrics
-* Gender 
 
 ```{r}
+# Libraries 
 library(magrittr)
 library(ggplot2)
-## Online
-
-Subjects<-factor(rep(seq(1,20),each=4))  
-# Creates 20 participants worth of data since it makes 4 per participant
-# 80 = 20 * 2 * 2 
-DV<-rnorm(80,c(100,200,300,400),sd=10)
-IV1<-rep(c("level1","level2"),each=2,20)
-IV2<-rep(c("level1","level2"),each=1,40)
-AllData<-data.frame(DV,IV1,IV2)
-AllData
-
-AllData %>%
-  group_by(IV1) %>%
-  summarise(mean = mean(DV))
-
-#-----------------------------------------------
-# Create Subjects
-#Subjects<-factor(rep(seq(1,32),each=4))  
-
-# First Create Single Participant of Within Subject Design 
-
-nsubjects <- 32
-
-emotion <-rep(c("happy","sad","calm","angry"), times = 4*nsubjects)
-emotion
-
-lyrics <-rep(c("lyrics","nolyrics"),each = 4, times =2*nsubjects )
-lyrics
-
-gender <- rep(c("man","woman"), each = 8, times = 1*nsubjects)
-gender
-
-means_table_1 <- table_1 %>% 
-  select(means, emotions, lyrics, gender) %>%
-  arrange(gender, lyrics, emotions) %>%
-  pull(means)
-
-values <- rnorm(16*nsubjects, means_table_1, sd = 1.265)
-
-my_data <- data.frame(emotion, lyrics, gender, values)
-
-my_data
-
-my_subjects<-factor(rep(seq(1,nsubjects),each=16))  
-
-my_subjects
-
-my_data %>%
-  ggplot(aes(x = emotion, color = lyrics, y = values)) +
-  geom_point()
-
-ANOVAresults<-aov(values~emotion*lyrics*gender + Error(my_subjects/(emotion*lyrics)), my_data)
-
-tidy(ANOVAresults)
-
-tabz <- summary(ANOVAresults)
-
+library(dplyr)
+library(lmerTest)
 library(broom)
-tidy(tabz)
-
-model.tables(ANOVAresults,"means")
-
-```
 
 
-
-```{r}
+## Experiment 1 Data 
 table_1_values <- c(7.85, 8.18, 6.62, 6.91, 
                     5.79, 5.20, 6.51, 6.11, 
                     7.75, 7.95, 4.05, 5.41, 
                     5.00, 4.41, 6.08, 6.59)
 
-grim_test <- function(sample_size, likert_start, likert_end, means){
-  integer_values <- sample_size * means
-  bottom <- round(floor(integer_values)/ sample_size, 2)
-  top <- round(ceiling(integer_values)/ sample_size, 2)
-  df <- data.frame(bottom, top, means)
-  df$sample_size <- sample_size
-  df$possible <- ifelse(df$bottom == means | df$top == means, yes = TRUE,no = FALSE)
-  df
-}
+## Experiment 1 Design Properties 
+n_subjects <- 32
+global_sd <- sd(table_1_values)
+number_of_ivs <- 8
 
-sd(table_1$means)
+levels_of_emotion_iv <- 4
 
-table_1 <- grim_test(32, 1, 9, table_1_values)
 
-table_1$gender <- rep(c("woman","man"),8)
-table_1$lyrics <- rep(c("no lyric", "no lyric", "lyric","lyric"),4)
-table_1$emotions <- c(rep("happy",4), rep("sad",4), rep("calm",4), rep("angry",4))
+# Input values from Table 1 
+nolyric_angry <- 4.80
+nolyric_sad <- 5.59
+nolyric_calm <- 7.82
+nolyric_happy <- 7.96 
 
-table_1 <- table_1 %>%
-  tibble() %>%
-    mutate(valence = case_when(
-    emotions == "happy" ~ "positive",
-    emotions == "calm" ~ "positive",
-    emotions == "angry" ~ "negative",
-    emotions == "sad" ~ "negative"
-  ))
+lyric_angry <- 6.26
+lyric_sad <- 6.38
+lyric_calm <- 5.42
+lyric_happy <- 6.72
 
-paper_vector <- table_1 %>%
-  select(means, emotions, lyrics, gender) %>%
-  arrange(gender, lyrics, emotions) %>%
-  pull(means)
+#--------------------------------------------------------------
+# If you run this 10K times, how often do the results replicate
+# Main Effect of Lyrics
+# Main Effect of Emotion
+# Interaction 
+#--------------------------------------------------------------
+# Declare Variables 
+set.seed(99)
 
-experiment_1_function <- function(nsubjects, paper_vector,  sd = 1.265) {
-  # Set Number of Subjects
-  nsubjects <- 32
+lyric_main_effect_p <- c()
+emotion_main_effect_p <- c()
+interaction_effect_p <- c()
+
+lyric_coef <- c()
+emotion_coef_intercept <- c()
+emotion_coef_calm <- c()
+emotion_coef_happy <- c()
+emotion_coef_sad <- c()
+
+emotion_interaction_lyric_calm <- c()
+emotion_interaction_lyric_happy <- c()
+emotion_interaction_lyric_sad <- c()
+
+# for (i in 1:10000){
+#   print(paste("working on simulation",i))
+#   # Create Subjects  
+#   Subjects<-factor(rep(seq(1,n_subjects),each=number_of_ivs))  
+#   # Create Data Space
+#   response_categories <- n_subjects * number_of_ivs
+#   # Decalare DV 
+#   DV <- rnorm(response_categories, c(nolyric_angry, nolyric_sad, nolyric_calm, nolyric_happy,
+#                                      lyric_angry, lyric_sad, lyric_calm, lyric_happy), sd=global_sd) 
+#   # Label Dataset According to rnorm set-up 
+#   lyric_effect <-rep(c("nolyric","lyric"),each=levels_of_emotion_iv,n_subjects) # label levels accordingly 
+#   emotion_effect <-rep(c("angry","sad","calm","happy"),each=1, length(lyric_effect)/levels_of_emotion_iv)
+#   # Bind Data 
+#   AllData<-data.frame(DV,lyric_effect, emotion_effect)
+#   # Run Model  
+#   ANOVAresults<-aov(DV~lyric_effect*emotion_effect + Error(Subjects/(lyric_effect*emotion_effect)), AllData)
+#   
+#   # Get Coefs 
+#   coefs_anova <- coef(ANOVAresults)
+#   
+#   # Lyrics 
+#   lyric_coef[i] <- coefs_anova$`Subjects:lyric_effect`
+#   # Emotions  
+#   emotion_coef_intercept[i] <-  coefs_anova$`(Intercept)`
+#   emotion_coef_calm[i] <- coefs_anova$`Subjects:emotion_effect`[1]
+#   emotion_coef_happy[i] <- coefs_anova$`Subjects:emotion_effect`[2]
+#   emotion_coef_sad[i] <- coefs_anova$`Subjects:emotion_effect`[3]
+#  
+#   # Interactions  
+#   emotion_interaction_lyric_calm[i] <-  coefs_anova$`Subjects:lyric_effect:emotion_effect`[1]
+#   emotion_interaction_lyric_happy[i] <- coefs_anova$`Subjects:lyric_effect:emotion_effect`[2]
+#   emotion_interaction_lyric_sad[i] <-   coefs_anova$`Subjects:lyric_effect:emotion_effect`[3]
+#    
+#   # Get P Values 
+#   lyric_main_effect_p[i] <- tidy(ANOVAresults)$p.value[2]
+#   emotion_main_effect_p[i]   <- tidy(ANOVAresults)$p.value[4]
+#   interaction_effect_p[i] <- tidy(ANOVAresults)$p.value[6]
+#   
+# }
+
+simulation_data <- cbind(
+  lyric_main_effect_p ,
+  emotion_main_effect_p,
+  interaction_effect_p ,
   
-  # Create Design
-  emotion <- rep(c("happy", "sad", "calm", "angry"), times = 4 * nsubjects)
-  lyrics <- rep(c("lyrics", "nolyrics"), each = 4, times = 2 * nsubjects)
-  gender <- rep(c("man", "woman"), each = 8, times = 1 * nsubjects)
+  lyric_coef ,
+  emotion_coef_intercept,
+  emotion_coef_calm,
+  emotion_coef_happy,
+  emotion_coef_sad ,
   
-  values <- rnorm(16 * nsubjects, means_table_1, sd = sd)
-  
-  my_data <- data.frame(emotion, lyrics, gender, values)
-  
-  my_subjects <- factor(rep(seq(1, nsubjects), each = 16))
-  
-  ANOVAresults <- aov(values ~ emotion * lyrics * gender + Error(my_subjects / (emotion * lyrics)), my_data)
-  
-  summary_table <- summary(ANOVAresults)
-  summary_table
-}
+  emotion_interaction_lyric_calm,
+  emotion_interaction_lyric_happy,
+  emotion_interaction_lyric_sad
+)
 
-experiment_1_function()
+#saveRDS(object = simulation_data, file = "simulation/simulation_data99.RDS" )
 
-```
+simulation_data <- simulation_data %>% tibble()
 
+## Plot P Values
 
+simulation_data %>%
+  ggplot(aes( x = lyric_main_effect_p)) +
+  geom_density()
 
-```{r}
-set.seed(16)
+simulation_data %>%
+  ggplot(aes( x = emotion_main_effect_p)) +
+  geom_density()
 
-simulations <- replicate(n = 100, experiment_1_function(), simplify = FALSE)
-
-for (i in simulations) {
-  print(paste("Working on", i))
-  print(simulations[[i]])
-  
-}
-
-```
-
-* Could find SD from the tables I guess 
+simulation_data %>%
+  ggplot(aes( x = interaction_effect_p)) +
+  geom_density()
 
 
+#-----------------------------------------------
+# Coeficients 
 
-```{r}
-# Create MULTIPLE Subjects (embed code to expand)
+simulation_data %>%
+  ggplot(aes( x = emotion_coef_intercept)) +
+  geom_density()
 
-# Replicate 
+simulation_data %>%
+  ggplot(aes( x = emotion_coef_happy)) +
+  geom_density()
+
+simulation_data %>%
+  ggplot(aes( x = emotion_coef_calm)) +
+  geom_density()
+
+simulation_data %>%
+  ggplot(aes( x = emotion_coef_sad)) +
+  geom_density()
+
+ANOVAresults %>% summary()
+#-----------------------------------------------
+# P values 
+simulation_data %>%
+  ggplot(aes( x = lyric_main_effect_p)) +
+  geom_vline(xintercept = .05) +
+  geom_density()
+
+simulation_data %>%
+  mutate(perc_p_lyrics = if_else(lyric_main_effect_p >= .05, TRUE, FALSE)) %>%
+  ggplot(aes(x = perc_p_lyrics)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)))
+  geom_bar()
+
+#-----------------------------------------------------
+# Interactions 
+
+simulation_data %>%
+  ggplot(aes( x = emotion_interaction_lyric_sad)) +
+  geom_density()
+
+simulation_data %>%
+  ggplot(aes( x = emotion_interaction_lyric_happy)) +
+  geom_density()
+
+simulation_data %>%
+  ggplot(aes( x = emotion_interaction_lyric_calm)) +
+  geom_density()
+
+#-----------------------------------------------------------------------------------
+anova_results_obj <- summary(ANOVAresults)
+
+model.tables(ANOVAresults,"means")
 
 
+anova_two <- lmer(DV~lyric_effect*emotion_effect + (1|Subjects), data=AllData)
+summary(anova_two)
 
+library(effectsize)
+eta_squared(ANOVAresults)
 
-# Establish Means and SD of All Groups (as if singular)
-DV<-rnorm(160,c(100,200,400,700),sd= c(1,20,60,200))
-DV2 <- rnorm()
+plot(anova_two)
 
-rnorm(4, c(7.39,6.29,5.52,5.90), sd = 2)
+anova_two_obj <- summary(anova_two)
 
-#-------------------------------------------------
-emotions2 <- rep(c("happy","sad","calm","angry"), each = 1,4)
-emotions2
+anova_two_obj$coefficients
 
-AllData2 <- data.frame(DV2, emotions2)
-
-AllData<-data.frame(DV,emotion,lyrics, gender)
-
-AllData
 
 AllData %>%
-  group_by(emotion, lyrics) %>%
-  summarise(mean = mean(DV))
+  mutate(emotion_effect = factor(emotion_effect, levels = c("happy","calm","angry","sad"))) %>%
+  group_by(emotion_effect) %>%
+  summarise(avg_emo = mean(DV)) %>%
+  ggplot(aes(x = emotion_effect, y = avg_emo)) +
+  geom_bar(stat = "identity")
 
 AllData %>%
-  ggplot(aes(x = emotion, y = DV, color = lyrics)) +
-  geom_point()
-
-
+  mutate(lyric_effect = factor(lyric_effect, levels = c("lyric","nolyric"))) %>%
+  group_by(lyric_effect) %>%
+  summarise(avg_lyric = mean(DV)) %>%
+  ggplot(aes(x = lyric_effect, y = avg_lyric)) +
+  geom_bar(stat = "identity")
 ```
 
+## References
 
-
-* Also make GRIM tables 
-
-
-```{r setup, include=FALSE}
-
-
-```
-
+* [Running Simulations in R](https://nickch-k.github.io/EconometricsSlides/Week_08/Power_Simulations.html).
