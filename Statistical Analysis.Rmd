@@ -16,6 +16,7 @@ library(ggridges)
 library(ez)
 library(multcomp)
 library(lme4)
+library(ggpubr)
 library(sjPlot)
 library(patchwork)
 library(stringr)
@@ -83,6 +84,16 @@ table_1
 df_complete <- read_csv("Complete_Data.csv", 
                         col_types = cols(age = col_character()))
 
+# Drop Data 
+df_complete <- df_complete %>%
+  # REMOVE Pilot Data
+  filter(subject > 21) %>%
+  # REMOVE Non Native Speakers
+  filter(!subject %in% c(38,53)) %>%
+  # REMOVE Hearing Problems
+  filter(!subject %in% c(43, 201, 204)) 
+
+
 df_complete <- df_complete %>%
   mutate(age = str_replace_all(string = age, pattern = "eighteen", replacement = "18")) %>%
   mutate(age = str_replace_all(string = age, pattern = "3", replacement = NA_character_)) %>%
@@ -98,7 +109,7 @@ df_complete <- df_complete %>%
    mutate(global_valence = case_when(
     track_valence == "Happy" ~ "Positive",
     track_valence == "Calm" ~ "Positive",
-    track_valence == "Angry" ~ "Negative",
+    track_valence == "AngryStressful" ~ "Negative",
     track_valence == "Sad" ~ "Negative"
   )) 
 
@@ -151,7 +162,7 @@ table_1 %>%
     xmin = c("Negative"), xmax = c("Positive"),
     y.position = c(8), label = c("p < .001 ***"),
     tip.length = 0.05) +
-  labs(title = "Main Effect of Valence (Contrast)", subtitle = "F (1, 30) = 21.81, MSE = 1.68, p < .001", y = "Mean") +
+  labs(title = "Main Effect of Valence", subtitle = "F (1, 30) = 21.81, MSE = 1.68, p < .001", y = "Mean") +
   theme_minimal() -> me_valence
 
 me_valence
@@ -208,6 +219,9 @@ df_congruent <- df_complete %>%
   filter(congru == TRUE)
 
 df_congruent$response <- factor(df_congruent$response, levels = c("Happy","Calm","AngryStressful","Sad"))
+
+df_congruent
+
 
 #---------------------------------------------------------------------------------------------------
 # Main Effect of Intended Emotion
