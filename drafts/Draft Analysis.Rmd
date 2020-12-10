@@ -1,0 +1,435 @@
+---
+title: "Replication Analysis"
+author: "David John Baker"
+date: "24/06/2020"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+This document provides the analysis for "Lyrics’ Emotional Influences in Songs: A Conceptual Replication of Ali and Peynircioğlu’s (2006) Study".
+The script creates both figures for the paper as well as the statistical analysis.
+
+* [ ] Add in Analyses about Inconsistencies in 2,3,4 
+* [ ] Re-order factor Levels in both data 
+
+```{r}
+# Libraries Needed 
+library(ggridges)
+library(ez)
+library(multcomp)
+library(lme4)
+library(sjPlot)
+library(patchwork)
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(gt)
+
+
+
+
+# Paper Data 
+
+table_1_values <- c(7.85, 8.18, 6.62, 6.91, 
+                    5.79, 5.20, 6.51, 6.11, 
+                    7.75, 7.95, 4.05, 5.41, 
+                    5.00, 4.41, 6.08, 6.59)
+
+
+sd(table_1_values)
+
+# Function for Computing GRIM Tests
+
+grim_test <- function(sample_size, likert_start, likert_end, means){
+  integer_values <- sample_size * means
+  bottom <- round(floor(integer_values)/ sample_size, 2)
+  top <- round(ceiling(integer_values)/ sample_size, 2)
+  df <- data.frame(bottom, top, means)
+  df$sample_size <- sample_size
+  df$possible <- ifelse(df$bottom == means | df$top == means, yes = TRUE,no = FALSE)
+  df
+  }
+
+
+table_1 <- grim_test(32, 1, 9, table_1_values)
+
+
+table_1$gender <- rep(c("woman","man"),8)
+table_1$lyrics <- rep(c("no lyric", "no lyric", "lyric","lyric"),4)
+table_1$emotions <- c(rep("happy",4), rep("sad",4), rep("calm",4), rep("angry",4))
+
+table_1 <- table_1 %>%
+  tibble() %>%
+    mutate(valence = case_when(
+    emotions == "happy" ~ "positive",
+    emotions == "calm" ~ "positive",
+    emotions == "angry" ~ "negative",
+    emotions == "sad" ~ "negative"
+  ))
+
+table_1
+
+# LSU Data 
+df_complete <- read_csv("Complete_Data.csv", 
+                        col_types = cols(age = col_character()))
+
+# Drop Data 
+df_complete <- df_complete %>%
+  # REMOVE Pilot Data
+  filter(subject > 21) %>%
+  # REMOVE Non Native Speakers
+  filter(!subject %in% c(38,53)) %>%
+  # REMOVE Hearing Problems
+  filter(!subject %in% c(43, 201, 204)) 
+
+
+df_complete <- df_complete %>%
+  mutate(age = str_replace_all(string = age, pattern = "eighteen", replacement = "18")) %>%
+  mutate(age = str_replace_all(string = age, pattern = "3", replacement = NA_character_)) %>%
+  mutate(age = as.numeric(age))
+
+valence_table_exact <- read_csv("data/valence_sheet.csv")
+
+df_complete %>% 
+  left_join(valence_table_exact) %>%
+  rename(track_valence = Valence) -> df_complete
+
+df_complete <- df_complete %>%
+   mutate(global_valence = case_when(
+    track_valence == "Happy" ~ "positive",
+    track_valence == "Calm" ~ "positive",
+    track_valence == "Angry" ~ "negative",
+    track_valence == "Sad" ~ "negative"
+  )) 
+
+gender_table <- df_complete %>%
+  select(subject, gender) %>%
+  distinct() %>%
+  mutate(gender = str_to_lower(gender)) %>%
+  mutate(cleaned_gender = case_when(
+    gender == "cis male" ~ "male",
+    gender == "false" ~ NA_character_,
+    gender == "female" ~ "female",
+    gender == "femalen" ~ "female",
+    gender == "male" ~ "male",
+    gender == "malen" ~ "male"
+  )) %>% 
+  select(subject,cleaned_gender)
+  
+
+df_complete %>%
+  select(subject) %>%
+  distinct() %>%
+  tally()
+
+```
+
+Before running analysis on our own data, below we visualize the results that were reported in the original paper so we know if we match them. 
+
+## AP Data
+
+In the A+P 2006 paper, under Experiment 1, the authors report results of4 x 2 x 2 ANOVA with Lyrics, Emotion, and Gender:
+
+* [ ] Main Effect of Emotion with Happy sigdif from other three, other three no-sigdif between
+* [ ] Main Effect of Valence (Positive Better than Negative) (Should have been reported as contrast)
+* [ ] Main Effect of Lyrics (Lyrics Higher)
+* [ ] NO Main effect of Gender
+* [ ] Lyric and Gender Interaction (lyrics made motions of melody for women worse but not men)
+* [ ] Sanity Check of Congruency Always Higher 
+
+```{r}
+table_1$emotions <- factor(table_1$emotions, levels = c("happy","calm","angry","sad"))
+
+# Main Effect of Intended Emotion
+table_1 %>%
+  group_by(emotions) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = emotions)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Main Effect of Intended Emotion",
+       subtitle = "Happy Significant Diff, but Not Others") +
+  theme_minimal() -> me_intended_emotion
+
+# Main Effect of Valence
+table_1 %>%
+  group_by(valence) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = valence)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Main Effect of Valence") +
+  theme_minimal() -> me_valence
+
+
+# Main Effect of Lyrics 
+table_1 %>%
+  group_by(lyrics) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = lyrics)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Main Effect of Lyrics") +
+  theme_minimal() -> me_lyrics
+
+# NO Main Effect of Gender
+
+table_1 %>%
+  group_by(gender) %>%
+  summarise(mean_ratings = mean(means))  %>%
+  ggplot(aes(y = mean_ratings, 
+             x = gender)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Main Effect of gender") +
+  theme_minimal() -> me_gender
+
+(ap_panel <- ( me_intended_emotion | me_valence ) / ( me_lyrics | me_gender ))
+
+```
+
+
+## LSU Data 
+
+First Visualise:
+
+```{r}
+# Standard Deviation of Mean Function
+std <- function(x) sd(x)/sqrt(length(x))
+
+# Create Long Data, Subset Only Congruancy Conditions 
+df_congruent <- df_complete %>%
+  select(subject, Happy:AngryStressful, Condition, track_valence, global_valence) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>%
+  # Congrency Add Here!!
+  mutate(congru = track_valence == response) %>%
+  filter(congru == TRUE)
+
+df_congruent$response <- factor(df_congruent$response, levels = c("Happy","Calm","AngryStressful","Sad"))
+
+# Main Effect of Intended Emotion
+me_intended_emotion_lsu <- df_congruent %>%
+  group_by(response) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = response, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+    geom_errorbar(aes(ymin = response_mean + response_std, 
+                      ymax = response_mean - response_std)) + 
+  labs(title = "Main Effect of Emotion")
+
+# Main Effect of Valence
+me_valence_lsu <- df_congruent %>%
+  group_by(global_valence) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = global_valence, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = response_mean + response_std, 
+                   ymax = response_mean - response_std)) + 
+  theme_minimal() +
+  labs(title = "Main Effect of Valence")
+
+# Main Effect of Lyrics
+me_lyrics_lsu <- df_congruent %>%
+  group_by(Condition) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = Condition, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  geom_errorbar(aes(ymin = response_mean + response_std, 
+                    ymax = response_mean - response_std)) + 
+  labs(title = "Main Effect of Condition")
+
+# Main Effect of Gender 
+me_gender_lsu <- df_congruent %>%
+  left_join(gender_table) %>%
+  group_by(cleaned_gender) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ggplot(aes(x = cleaned_gender, y = response_mean)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  geom_errorbar(aes(ymin = response_mean + response_std, 
+                    ymax = response_mean - response_std)) + 
+  labs(title = "Main Effect of Gender")
+
+(lsu_panel <- (me_intended_emotion_lsu | me_valence_lsu) / (me_lyrics_lsu | me_gender_lsu))
+```
+
+```{r}
+# Big Plots of LSU 
+# Make Mean Rating Per Condition 
+df_congruent  %>%
+  left_join(gender_table) %>%
+  group_by(Condition, response) %>%
+  summarise(mean_rating = mean(rating),
+            sd_rating = sd(rating),
+            max_rating = max(rating),
+            min_rating = min(rating),
+            se_rating = std(rating),
+            number_of_ratings = n()) %>%
+  mutate(response = factor(response, levels = c("Happy","Calm","AngryStressful","Sad"))) %>%
+  mutate(valence = case_when(
+    response == "AngryStressful" ~ "Negative",
+    response == "Sad" ~ "Negative",
+    response == "Happy" ~ "Positive",
+    response == "Calm" ~ "Positive"
+    
+  )) %>%
+  ggplot(aes(x = response, y = mean_rating, fill = valence)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Condition) +
+  geom_errorbar(aes(ymin = mean_rating + se_rating, ymax = mean_rating - se_rating)) + 
+  labs(title = "Mean Ratings Per Congruant Condition",
+       caption = "Error Bars represent Standard Error of Mean",
+       x = "Response Category",
+       y = "Mean Rating") +
+  theme_minimal()
+
+# Big Plots of AP (Data Problem)
+
+ap_panel
+lsu_panel
+```
+
+Before modeling, what do we see in comparision:
+
+* We find happy is not highest, but calm, happy actually our lowest
+* ANOVA to determine any sort of post-hoc significant 
+* We find reverse of valence, actually negative valence get higher ratings
+* Appears people rate our lyrics as less, oppositive of others
+* Also don't see any big evidence of main effect of gender
+* Factorial ANOVA needed to Look at it all 
+
+Also wanted to see if congruancy always higher as they report but no numbers or graphs:
+
+```{r}
+df_complete %>% 
+  select(subject, Happy:AngryStressful, Condition, track_valence, global_valence) %>%
+  pivot_longer(cols = Happy:AngryStressful, names_to = "response",values_to = "rating") %>% 
+  group_by(track_valence, response) %>%
+  summarise(
+    mean_rating = mean(rating)
+  ) %>%
+  ggplot(aes(x = response, fill = track_valence, y = mean_rating)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Congruency Check")
+```
+
+## Analysis
+
+### Data Screening
+
+* Remove Beyond 1.5 IQR
+* Remove Hearing Loss 
+
+
+
+```{r}
+df_congruent
+```
+
+
+### Hypothesis One 
+
+Hypothesis one according to Aspredicted.com
+
+> 4 x 2 factorial repeated measures anova 
+
+```{r}
+options(scipen = 999)
+df_replicate_anova <- df_congruent
+
+factorial_anova_direct_replication <- ezANOVA(
+  data = df_replicate_anova
+  , dv = .(rating)
+  , wid = .(subject)
+  , within = .(Condition, response),
+  type = 3, # Do you want to do Type III sum of Squares, doesnt change results...
+  detailed = TRUE,
+  return_aov = TRUE
+)
+
+# Check Exlusion Criteria from Pre-Registration since this is on border
+print(factorial_anova_direct_replication)
+```
+
+* Main Effect of Condition (Lyrics) and Response (Emotion)
+* No significant interaction with all data 
+* (it does emerge with missing gender people in there)
+
+
+## Data Caveat 
+
+When making the top charts before running our data, I was kind of shocked at how low their sample size was. 
+While that is not too much of a problem in general, I had just read [this article](https://medium.com/@jamesheathers/the-grim-test-further-points-follow-ups-and-future-directions-afd55ff67bb0) and for fun wanted to see what would happen if I put their data into this calculator.
+Their [preprint is here](https://peerj.com/preprints/2064/).
+
+The long story short is that only seven out of their sixteen values were actually mathematically possible given their sample size.
+This could just be sloppieness on their part. 
+But I looked into it a bit more and plotted which means were possible and which were not.
+What I found a bit peculiar, is the first main effect that they report of condition, with happy being higher than the other ones (but no difference between the two), the two values here that are the highest in the happy condition (women, happy, no lyric + man happy no lyric) are both impossible values.
+I didn't want to get into more speculation, but this probably should be addressed in the Discussion section. 
+
+```{r}
+table_1 %>%
+  mutate(number_of_possible = sum(possible)) %>%
+  mutate(total_values = length(possible)) %>%
+  mutate(percent_possible = number_of_possible/total_values) %>%
+  select(-valence, -number_of_possible, -total_values) %>%
+  gt()
+
+(possible_bar_chart <- table_1 %>%
+  tibble() %>%
+  mutate(id = row_number()) %>%
+  mutate(id2 = paste(gender, emotions, lyrics)) %>%
+  ggplot(aes(y = means, 
+             x = id2, 
+             fill  = lyrics)) +
+  geom_bar(stat = "identity") +
+  stat_summary(fun = sum, geom="text", aes(label=possible), vjust = 0) +
+  theme_minimal() +
+  coord_flip() +
+  labs(title = "A+P Table 1 Possible Values") )
+
+possible_bar_chart + ap_panel
+
+```
+
+
+## Extending 
+
+I think we should write the paper and say that since they didn't find an effect of gender, it was not worth testing. 
+They had some weird literature suggesting why it should be added, but in order to figure out if the results here are generlizable (obvs not since we didn't see any other patterns consistent with their original findings) we have other ideas that we might put forward.
+
+Instead of thinking that there would be a main effect of gender, we might think that people with musical training will respond with more variability than those without.
+
+To explore this we do the following
+
+* Correlate GMSIs with mean rating in congruancy conditions
+* Then add GMSI in linear model as interaction
+
+> rating ~ emotions + lyrics:gmsi 
+
+Or somethingl like that. 
