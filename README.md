@@ -35,6 +35,12 @@ These include
 * Type I error
 * Empirical human error of data entry 
 
+## Experiment
+
+The `experiment` directory also contains all materials used in running the experiment. 
+
+* Running `experiment/lyrics.html` will launch the experiment in your browser.
+
 
 
 
