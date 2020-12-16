@@ -216,9 +216,11 @@ foo <- grid.arrange(me_lyric, me_valence, nrow = 1)
 #figure_1
 foo2 <- grid.arrange(me_intended_emotion, foo, nrow = 2)
 
+
+ggsave(plot = foo2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1.png")
+
 #ggsave(plot = foo2, dpi = 300, filename = "img/Figure_1.tiff")
 
-#ggsave(plot = foo2, dpi = 300, filename = "img/Figure_1.png")
 
 # redo this! 
 
@@ -341,6 +343,11 @@ foo3 <- grid.arrange(me_intended_emotion_lsu, conditions, nrow = 2)
 
 ggsave("img/lsue_effects.png", foo3, height = 5, width = 9)
 
+# Figure Save 
+ggsave("img/Figures/Figure2.png", foo3, height = 5, width = 9)
+
+
+
 
 #(lsu_panel <- (me_intended_emotion_lsu | me_valence_lsu) / (me_lyrics_lsu | me_gender_lsu))
 
@@ -378,11 +385,14 @@ df_congruent  %>%
        x = "Response Category",
        y = "Mean Rating",
        fill = "Valence") +
-  theme_minimal() -> all_lsu_valence
+  theme_bw()  +      
+  scale_fill_manual(values = c("grey1","grey30")) -> all_lsu_valence
 
 all_lsu_valence
 
 ggsave(filename = "img/all_lsu_valence.png", all_lsu_valence, height = 5, width = 9)
+ggsave(filename = "img/Figures/Figure3.png", all_lsu_valence, height = 5, width = 9)
+
 
 ```
 
@@ -518,16 +528,21 @@ emotion_rating_table %>%
   pivot_longer(cols = `Musical GMSI`:`Emotions GMSI`, names_to = "Emotion", values_to = "GMSI") %>%
   group_by(Emotion, response) %>%
 # Make Plot 
-  ggplot(aes(x = avg_rating, y = GMSI, color = Emotion)) +
+  ggplot(aes(x = avg_rating, y = GMSI, shape = Emotion, linetype = Emotion)) +
   geom_point(size = 1.5) +
-  geom_smooth(method = "lm", se = FALSE) +
-  theme_minimal() +
+  scale_shape_manual(name = "Data", values=c(1,4)) +
+  scale_linetype_manual(name = "Model", values=c(3,1)) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", aes(linetype = Emotion)) +
+  theme_bw() +
   facet_wrap(~response) +
-  labs(title = "Average Rating Per Emotion vs GMSI", x = "Average Rating", y = "GMSI Score of Individual") -> cor_plots_gmsi
+  labs(title = "Average Rating Per Emotion vs Gold-MSI", x = "Average Rating", y = "Standardized GMSI Score of Individual") -> cor_plots_gmsi
 
 cor_plots_gmsi
 
 ggsave(filename = "img/cor_plots.png", cor_plots_gmsi, units = "cm", dpi = 300, height = 10, width = 20)  
+
+# Figure Save 
+ggsave(filename = "img/Figures/Figure4.png", cor_plots_gmsi, units = "cm", dpi = 300, height = 10, width = 20)  
 
 ```
 
