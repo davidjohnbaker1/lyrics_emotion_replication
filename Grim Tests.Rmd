@@ -10,6 +10,10 @@ editor_options:
 This markdown file contains scripts for supplmentary matrial investigating the GRIM test on tables used in the original paper. 
 
 ```{r}
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+
 # Function for Computing GRIM Tests
 
 
@@ -101,15 +105,20 @@ table_3 <- grim_test(36, 1, 9, table_3_values)
 table_4 <- grim_test(36, 1, 9, table_4_values)
 
 table_1 %>%
-  summarise(m_poss = mean(possible))
+  summarise(m_poss = mean(possible),
+            count = sum(possible))
 
 table_2 %>%
-  summarise(m_poss = mean(possible))
+  summarise(m_poss = mean(possible),
+            count = sum(possible))
 
 table_3 %>%
-  summarise(m_poss = mean(possible))
+  summarise(m_poss = mean(possible),
+            count = sum(possible))
 
 table_4 %>%
-  summarise(m_poss = mean(possible))
-  ```
+  summarise(m_poss = mean(possible),
+            count = sum(possible))
+
+```
 
