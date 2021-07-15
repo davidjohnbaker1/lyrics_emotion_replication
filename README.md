@@ -12,7 +12,7 @@ Here we only attempt to generalize the findings of the first experiment reported
 
 The set of findings we sought to reprouce are listed below in Figure 1.
 
-![Figure 1](img/Figure_1.png)
+![Figure 1](img/Figures/Figure1_labels.png)
 
 This included 
 
@@ -24,16 +24,15 @@ We chose to drop gender from our analyses, choosing to only focus on lyrics and 
 
 Our experiment also found significant findings, but in the opposite direction.
 
-![Figure 2](img/lsu_figure.png)
+![Figure 2](img/Figures/Figure2_labels.png)
 
-![Figure 3](img/all_lsu_valence.png)
+The manuscript also has an additional analysis as well as suggestions to why we were not able to generalize these findings.
 
-The manuscript also has several additional analyses and suggestions to why we were not able to generalize these findings.
-These include 
+These include:
 
 * Strong experimental effects 
 * Type I error
-* Empirical human error of data entry 
+* Empirical human error of data entry detected by [GRIM test](https://journals.sagepub.com/doi/abs/10.1177/1948550616673876).
 
 ## Experiment
 
