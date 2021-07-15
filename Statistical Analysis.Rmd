@@ -27,14 +27,20 @@ library(readr)
 library(ggplot2)
 library(tidyr)
 library(gt)
+library(cowplot)
+library(gridExtra)
+library(lmerTest)
+library(multcomp)
+library(ggpubr)
+library(ggpubr)
+library(purrr)
+library(purrr)
 
 ```
 
 ## Results to Replicate
 
-* FIGURE 1: Replicate A+P 2006 Analysis of Experiment 1 and current experimental data
-  - put main effects next to one another
-  - add statistical significance 
+The first section of the notebooks provides the code to re-create data and figures related to the original paper. This includes both Figure 1 and the subsequent GRIM test. We also do our initial cleaning of the replication data. 
 
 ```{r figureone}
 #-------------------------------------------------------------------------------------------------
@@ -81,7 +87,7 @@ table_1$emotions <- factor(table_1$emotions, levels = c("Happy","Calm","Angry","
 table_1
 
 #-------------------------------------------------------------------------------------------------
-# LSU Data Import 
+# Replication Data Import 
 df_complete <- read_csv("Complete_Data.csv", 
                         col_types = cols(age = col_character()))
 
@@ -187,7 +193,7 @@ table_1 %>%
     xmin = c("Negative"), xmax = c("Positive"),
     y.position = c(8), label = c("p < .001 ***"),
     tip.length = 0.05) +
-  labs(title = "Original: Main Effect of Valence", subtitle = "F (1, 30) = 21.81, p < .001", y = "Mean") +
+  labs(title = "Original: Main Effect of Grouped Analysis", subtitle = "F (1, 30) = 21.81, p < .001", y = "Mean", x = "Grouped Analysis") +
   theme_minimal() -> me_valence
 
 me_valence
@@ -205,7 +211,7 @@ table_1 %>%
     xmin = c("Lyric"), xmax = c("No Lyric"),
     y.position = c(8), label = c("p < .01 **"),
     tip.length = 0.05) +
-  labs(title = "Original: Main Effect of Lyrics", subtitle = "F (1, 30) = 11.81, p < .01", y = "Mean") +
+  labs(title = "Original: Main Effect of Lyrics", subtitle = "F (1, 30) = 11.81, p < .01", y = "Mean", x = "Presence of Lyrics") +
   theme_minimal()  -> me_lyric
 
 me_lyric
@@ -221,32 +227,18 @@ table_1 %>%
   labs(title = "Main Effect of Gender") +
   theme_minimal() -> me_gender
 
-library(gridExtra)
 
+# Assemble Figure 1 (cow and grid)
 foo <- grid.arrange(me_lyric, me_valence, nrow = 1)
-
-#figure_1
 foo2 <- grid.arrange(me_intended_emotion, foo, nrow = 2)
-
-
-library(cowplot)
-
 bottom_row <- plot_grid(me_lyric, me_valence, labels = c('B', 'C'))
 top <- plot_grid(me_intended_emotion, labels = 'A')
-
 cow_fig_1 <- plot_grid(top, bottom_row, ncol = 1)
 
-
-
 ggsave(plot = foo2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1.png")
-
 ggsave(plot = foo2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1.tiff")
-
 ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.png")
 ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.tiff")
-
-
-#ggsave(plot = foo2, dpi = 300, filename = "img/Figure_1.tiff")
 
 #------------------------------------------------------------------------------------
 
@@ -265,9 +257,6 @@ df_congruent <- df_complete %>%
 df_congruent[df_congruent$response == "AngryStressful",]$response <- "Angry"
 
 df_congruent$response <- factor(df_congruent$response, levels = c("Happy","Calm","Angry","Sad"))
-
-df_congruent
-
 
 #---------------------------------------------------------------------------------------------------
 # Main Effect of Intended Emotion
@@ -361,23 +350,14 @@ me_gender_lsu <- df_congruent %>%
                     ymax = response_mean - response_std)) + 
   labs(title = "Main Effect of Gender")
 
-
 conditions <- grid.arrange(me_lyrics_lsu, me_valence_lsu, nrow = 1)
-
 foo3 <- grid.arrange(me_intended_emotion_lsu, conditions, nrow = 2)
-
-
 ggsave("img/lsue_effects.png", foo3, height = 5, width = 9)
-
 # Figure Save 
 ggsave("img/Figures/Figure2.tiff", dpi = 300, foo3, height = 5, width = 9)
-
-
-
-#(lsu_panel <- (me_intended_emotion_lsu | me_valence_lsu) / (me_lyrics_lsu | me_gender_lsu))
-
-
 ```
+
+Filter data for re-creation of anlaysis. 
 
 ```{r}
 # Big Plots of LSU 
@@ -412,9 +392,7 @@ df_congruent  %>%
   scale_fill_manual(values = c("grey1","grey30")) -> all_lsu_valence
 
 all_lsu_valence
-
 ggsave(filename = "img/all_lsu_valence.png", all_lsu_valence, height = 5, width = 9)
-
 ggsave(filename = "img/Figures/Figure3.tiff", dpi = 300, all_lsu_valence, height = 5, width = 9)
 
 
@@ -430,6 +408,7 @@ Our first analysis sought to re-create our 4 x 2 x 2 factorial repeated measures
 
 ```{r}
 # As ANOVA 
+
 df_replicate_anova <- df_congruent
 df_replicate_anova <- df_replicate_anova %>%
   rename(Lyrics = Condition, 
@@ -467,9 +446,6 @@ df_replicate_anova %>%
 apaTables::apa.ezANOVA.table(factorial_anova_direct_replication) #, filename = "tables/table_1.doc")
 
 
-library(lmerTest)
-library(multcomp)
-
 hypothesis_1_model <- lmer(rating ~ Lyrics*Gender*Emotion + (1|subject), data = df_replicate_anova)
 
 # ANOVA Table 
@@ -480,19 +456,17 @@ summary(hypothesis_1_model)
 
 # Main Effects of Emotions
 summary(glht(hypothesis_1_model, linfct=mcp(Emotion = "Tukey")), test = adjusted(type = "bonferroni"))
-
 summary(glht(hypothesis_1_model, linfct=mcp(Lyrics = "Tukey")), test = adjusted(type = "bonferroni"))
 
-# Grouped Valence Analysis (should have been contrast)
-
+# Grouped Valence Analysis (should have been contrast in original paper, suspect phishing)
 df_replicate_anova
 
 factorial_anova_direct_replication_valence <- ezANOVA(
   data = df_replicate_anova
   , dv = .(rating)
   , wid = .(subject)
-  , within = .(global_valence),
-  #, between = .(Gender),
+  , within = .(global_valence, Lyrics),
+#  , between = .(Gender),
   type = 3, # Do you want to do Type III sum of Squares, doesnt change results...
   detailed = TRUE,
   return_aov = TRUE
@@ -501,7 +475,6 @@ factorial_anova_direct_replication_valence <- ezANOVA(
 print(factorial_anova_direct_replication_valence)
 
 apaTables::apa.ezANOVA.table(factorial_anova_direct_replication_valence) #, filename = "tables/table_1.doc")
-
 
 df_replicate_anova %>%
   group_by(global_valence) %>%
@@ -537,9 +510,9 @@ top_replication <- df_replicate_anova %>%
     y.position = c(9, 10, 11,8,9), label = c("***", "***","***","***","***"),
     tip.length = 0.05) +
     geom_errorbar(aes(ymin = response_mean + response_std, 
-                      ymax = response_mean - response_std)) + 
+                      ymax = response_mean - response_std), width = .25, size = .4) + 
   labs(title = "Replication: Main Effect of Intended Emotion",
-       subtitle = "F (3, 264.30) = 28.24, p <.001",
+       subtitle = "F (2.59, 264.30) = 28.24, p <.001",
        x = "Emotion", y = "Mean Response")
 
 bot_left_replication <- df_replicate_anova %>%
@@ -562,9 +535,9 @@ bot_left_replication <- df_replicate_anova %>%
     y.position = c(7), label = c("***"),
     tip.length = 0.05) +
     geom_errorbar(aes(ymin = response_mean + response_std, 
-                      ymax = response_mean - response_std)) + 
+                      ymax = response_mean - response_std),  width = .25, size = .4) + 
   labs(title = "Replication: Main Effect of Lyrics",
-       subtitle = "F (1, 102) = 203.46, p <.001",
+       subtitle = "F (1, 103) = 203.46, p <.001",
        x = "Lyrics", y = "Mean Response")
 
 bot_right_rep <- df_replicate_anova %>%
@@ -586,23 +559,21 @@ bot_right_rep <- df_replicate_anova %>%
     y.position = c(7), label = c("n.s"),
     tip.length = 0.05) +
     geom_errorbar(aes(ymin = response_mean + response_std, 
-                      ymax = response_mean - response_std)) + 
-  labs(title = "Replication: Main Effect of Valence",
-       subtitle = "F (1, 103) = .08, p > .05",
-       x = "Valence", y = "Mean Response")
+                      ymax = response_mean - response_std), width = .25, size = .4) + 
+  labs(title = "Replication: Main Effect of Grouped Analysis",
+       subtitle = "F (1, 103) = .04, p > .05",
+       x = "Grouped Analysis", y = "Mean Response")
 
+# Assemble Figure 2
 topper_rep <- plot_grid(top_replication, labels = "A")
 bottom_rep <- plot_grid(bot_left_replication, bot_right_rep, labels = c("B","C"))
-
 figure2 <- plot_grid(topper_rep, bottom_rep, ncol = 1)
 
+# Save Figure 2 
 ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.png")
 ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.tiff")
 
 ```
-
-
-
 
 ### Hypothesis 2
 
@@ -655,8 +626,6 @@ cor.test(angry_emotions$avg_emo, angry_emotions$EMOTIONS)
 
 
 # Make 4 x 2 Panel with Linear Models 
-library(ggpubr)
-library(purrr)
 
 # Make Data 
 emotion_rating_table %>%
@@ -675,9 +644,6 @@ emotion_rating_table %>%
 
 correl_sum_stats %>%
   select(response, Emotion, R2, p)
-
-#%>%
-#  select(response, Emotion, R2, p) -> correlation_summary_stats
 
 emotion_rating_table %>%
   select(subject, rating, response) %>%
@@ -700,6 +666,7 @@ emotion_rating_table %>%
 
 cor_plots_gmsi
 
+# Make Figure 3 
 ggsave(filename = "img/cor_plots.png", cor_plots_gmsi, units = "cm", dpi = 300, height = 10, width = 20)  
 
 # Figure Save 
@@ -707,8 +674,7 @@ ggsave(filename = "img/Figures/Figure4.tiff", cor_plots_gmsi, units = "cm", dpi 
 
 ```
 
-
-Expanding for Mixed Effects
+## Analysis for Extension
 
 ```{r}
 
@@ -722,28 +688,9 @@ summary(hypothesis_2_model)
 sjPlot::tab_model(hypothesis_2_model)
 ```
 
-
-### Hypothesis 3
-
-(Removed for Publication)
-
-```{r}
-hypothesis_3_model <- lmerTest::lmer(rating ~ global_valence + (1|subject), data = df_replicate_anova)
-
-# ANOVA Table 
-anova(hypothesis_3_model)
-
-# Linear Model Output 
-summary(hypothesis_3_model)
-
-df_replicate_anova %>%
-  group_by(global_valence) %>%
-  summarise(mean = mean(rating),
-            sd= sd(rating))
-
-```
-
 ### Familiarity Check
+
+Ran model to look for significant contribution of familiarity, was not significant.
 
 ```{r}
 df_complete %>%
@@ -764,4 +711,3 @@ summary(hypothesis_4_model)
 
 tab_model(hypothesis_4_model)
 ```
-
