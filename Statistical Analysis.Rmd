@@ -88,7 +88,7 @@ table_1
 
 #-------------------------------------------------------------------------------------------------
 # Replication Data Import 
-df_complete <- read_csv("Complete_Data.csv", 
+df_complete <- read_csv("data/Complete_Data.csv", 
                         col_types = cols(age = col_character()))
 
 
@@ -623,6 +623,20 @@ cor.test(calm_emotions$avg_emo, calm_emotions$EMOTIONS)
 
 angry_emotions <- gmsi_cor(emotion_rating_table, gmsi_table, "Angry", "EMOTIONS")
 cor.test(angry_emotions$avg_emo, angry_emotions$EMOTIONS)
+
+# Emo Cor Table 
+cor.test(gmsi_table$MUSICAL, gmsi_table$EMOTIONS)
+
+cor.test(sad_emotions$avg_emo, happy_emotions$avg_emo)
+
+cor.test(calm_emotions$avg_emo, happy_emotions$avg_emo)
+cor.test(angry_emotions$avg_emo, happy_emotions$avg_emo)
+
+cor.test(sad_emotions$avg_emo, calm_emotions$avg_emo)
+cor.test(sad_emotions$avg_emo, angry_emotions$avg_emo)
+cor.test(calm_emotions$avg_emo, angry_emotions$avg_emo)
+
+
 
 
 # Make 4 x 2 Panel with Linear Models 
