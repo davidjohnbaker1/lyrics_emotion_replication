@@ -240,6 +240,8 @@ ggsave(plot = foo2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Fi
 ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.png")
 ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.tiff")
 
+ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.eps")
+
 #------------------------------------------------------------------------------------
 
 # Standard Deviation of Mean Function
@@ -572,6 +574,7 @@ figure2 <- plot_grid(topper_rep, bottom_rep, ncol = 1)
 # Save Figure 2 
 ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.png")
 ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.tiff")
+ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.eps")
 
 ```
 
@@ -682,6 +685,9 @@ cor_plots_gmsi
 
 # Make Figure 3 
 ggsave(filename = "img/cor_plots.png", cor_plots_gmsi, units = "cm", dpi = 300, height = 10, width = 20)  
+
+ggsave(filename = "img/Figures/Figure3_labels.eps", cor_plots_gmsi, units = "cm", dpi = 300, height = 10, width = 20)  
+
 
 # Figure Save 
 ggsave(filename = "img/Figures/Figure4.tiff", cor_plots_gmsi, units = "cm", dpi = 300, height = 10, width = 20)  
