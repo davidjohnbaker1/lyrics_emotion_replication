@@ -13,6 +13,7 @@ This has been updated to reflect the second submission of the article.
 
 ```{r}
 # Libraries Needed 
+library(effectsize)
 library(ggridges)
 library(ez)
 library(multcomp)
@@ -133,6 +134,7 @@ df_complete <- df_complete %>%
     track_valence == "Sad" ~ "Negative"
   )) 
 
+
 gender_table <- df_complete %>%
   select(subject, gender) %>%
   distinct() %>%
@@ -157,6 +159,14 @@ df_complete %>%
          sd = sd(age, na.rm = TRUE))
 
 range(df_complete$age, na.rm = TRUE)
+
+df_complete %>%
+  select(subject, EMOTIONS, MUSICAL) %>%
+  distinct() %>%
+  summarise(mean_emo = mean(EMOTIONS),
+            sd_emo = sd(EMOTIONS),
+            mean_musical = mean(MUSICAL),
+            sd_musical = sd(MUSICAL))
 
 #---------------------------------------------------------------------------------------------------
 # Main Effect of Intended Emotion
@@ -458,7 +468,10 @@ summary(hypothesis_1_model)
 
 # Main Effects of Emotions
 summary(glht(hypothesis_1_model, linfct=mcp(Emotion = "Tukey")), test = adjusted(type = "bonferroni"))
+
 summary(glht(hypothesis_1_model, linfct=mcp(Lyrics = "Tukey")), test = adjusted(type = "bonferroni"))
+
+effectsize::eta_squared(hypothesis_1_model, partial = TRUE)
 
 # Grouped Valence Analysis (should have been contrast in original paper, suspect phishing)
 df_replicate_anova
@@ -474,14 +487,35 @@ factorial_anova_direct_replication_valence <- ezANOVA(
   return_aov = TRUE
 )
 
+
+
 print(factorial_anova_direct_replication_valence)
 
+
 apaTables::apa.ezANOVA.table(factorial_anova_direct_replication_valence) #, filename = "tables/table_1.doc")
+
+summary(factorial_anova_direct_replication_valence)
+
 
 df_replicate_anova %>%
   group_by(global_valence) %>%
   summarise(mean = mean(rating, na.rm = TRUE),
             sd = sd(rating, na.rm = TRUE))
+
+df_replicate_anova %>%
+  group_by(Lyrics) %>%
+  summarise(mean = mean(rating, na.rm = TRUE),
+            sd = sd(rating, na.rm = TRUE))
+
+df_replicate_anova %>%
+  group_by(global_valence, Lyrics) %>%
+  summarise(mean = mean(rating, na.rm = TRUE),
+            sd = sd(rating, na.rm = TRUE)) %>%
+  mutate(totz = paste(global_valence,Lyrics)) %>%
+  ggplot(aes(x = totz, y = mean)) +
+  geom_bar(stat = 'identity') 
+
+
 
 ```
 
@@ -706,6 +740,16 @@ hypothesis_2_model <- lmerTest::lmer(rating ~ Condition*response + MUSICAL + EMO
 summary(hypothesis_2_model)
 
 sjPlot::tab_model(hypothesis_2_model)
+
+
+df_congruent %>%
+  left_join(gmsi_table)  -> model_2_data
+
+hypothesis_2_model_noemo <- lmerTest::lmer(rating ~ Condition*response + MUSICAL + (1|subject), data = model_2_data)
+
+summary(hypothesis_2_model_noemo)
+
+sjPlot::tab_model(hypothesis_2_model_noemo)
 ```
 
 ### Familiarity Check
