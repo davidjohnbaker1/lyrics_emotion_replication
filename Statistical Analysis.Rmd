@@ -31,10 +31,6 @@ library(gt)
 library(cowplot)
 library(gridExtra)
 library(lmerTest)
-library(multcomp)
-library(ggpubr)
-library(ggpubr)
-library(purrr)
 library(purrr)
 
 ```
@@ -170,6 +166,24 @@ df_complete %>%
 
 #---------------------------------------------------------------------------------------------------
 # Main Effect of Intended Emotion
+
+table_me_title <- expression(paste(italic("F"),"(3, 90) = 20.43, ", italic("p")," < .001"))
+t1 <- expression(paste(italic("t"),"(126) = 5.95, ", italic("p"),"< .05 *"))
+t2 <- expression(paste(italic("t"),"(126) = 7.09, ", italic("p"),"< .05 *"))
+t3 <- expression(paste(italic("t"),"(126) = 3.92, ", italic("p"),"< .05 *"))
+
+      
+      # "t(126) = 5.95, p <.05 * ", 
+      # "t(126) = 7.09, p <.05 *",
+      # "t(126) = 3.92, p <.05 *"
+
+# 
+# 
+#       "list(~italic(t)(126)==5.95,~italic(p) < .05)",
+#        "list(~italic(t)(126)==7.09,~italic(p) < .05)",
+#        "list(~italic(t)(126)==3.92,~italic(p) < .05)"
+# 
+
 table_1 %>%
   group_by(emotions) %>%
   summarise(mean_ratings = mean(means))  %>%
@@ -179,11 +193,18 @@ table_1 %>%
   coord_cartesian(ylim = c(1,11)) +
   scale_y_continuous( breaks = seq(1,9,1)) +
   geom_bracket(
-    xmin = c("Happy", "Happy","Happy"), xmax = c("Calm","Angry", "Sad"),
-    y.position = c(8, 9, 10), label = c("t(126) = 5.95, p <.05 * ", "t(126) = 7.09, p <.05 *","t(126) = 3.92, p <.05 *"),
+    xmin = c("Happy", "Happy","Happy"), 
+    xmax = c("Calm","Angry", "Sad"),
+    y.position = c(8, 9, 10), 
+    label = c(
+      "list(~italic(t)(126)==5.95,~italic(p) < '.05')",
+       "list(~italic(t)(126)==7.09,~italic(p) < '.05')",
+       "list(~italic(t)(126)==3.92,~italic(p) < '.05')"
+      ),
+    type = "expression",
     tip.length = 0.05) +
-  labs(title = "Original: Main Effect of Intended Emotion",
-       subtitle = "F (3, 90) = 20.43, p < .001",
+  labs(title = "Main effect of intended emotion",
+       subtitle = table_me_title,
        x = "Intended Emotion",
        y = "Mean") +
   theme_minimal() -> me_intended_emotion
@@ -191,6 +212,9 @@ table_1 %>%
 me_intended_emotion
 
 # Main Effect of Valence
+
+table_valence_title <- expression(paste(italic("F"),"(1, 30) = 21.81, ", italic("p")," < .001"))
+
 table_1 %>%
   group_by(valence) %>%
   summarise(mean_ratings = mean(means))  %>%
@@ -200,28 +224,37 @@ table_1 %>%
   scale_y_continuous(breaks = seq(1,9,1)) +
   coord_cartesian(ylim = c(1,9)) +
     geom_bracket(
-    xmin = c("Negative"), xmax = c("Positive"),
-    y.position = c(8), label = c("p < .001 ***"),
+    xmin = c("Negative"), 
+    xmax = c("Positive"),
+    y.position = c(8), 
+    label = c("list(~italic(p) < .001)"), 
+    type = "expression",
     tip.length = 0.05) +
-  labs(title = "Original: Main Effect of Grouped Analysis", subtitle = "F (1, 30) = 21.81, p < .001", y = "Mean", x = "Grouped Analysis") +
+  labs(title = "Main effect of grouped analysis", subtitle = table_valence_title, y = "Mean", x = "Grouped analysis") +
   theme_minimal() -> me_valence
 
 me_valence
 
 # Main Effect of Lyrics 
+
+table_lyrics_title <- expression(paste(italic("F"),"(1, 30) = 11.81, ", italic("p")," < .01"))
+
 table_1 %>%
   group_by(lyrics) %>%
   summarise(mean_ratings = mean(means))  %>%
+  mutate(lyrics = str_replace_all(string = lyrics, "Lyric","Lyrics")) %>%
+  mutate(lyrics = str_replace_all(string = lyrics, "No Lyrics","No lyrics")) %>%
   ggplot(aes(y = mean_ratings, 
              x = lyrics)) +
   geom_bar(stat = "identity") +
   scale_y_continuous( breaks = seq(1,9,1)) +
   coord_cartesian(ylim = c(1,9)) +
     geom_bracket(
-    xmin = c("Lyric"), xmax = c("No Lyric"),
-    y.position = c(8), label = c("p < .01 **"),
+    xmin = c("Lyrics"), xmax = c("No lyrics"),
+    y.position = c(8), label = c("list(~italic(p) < .001)"),
+    type = "expression",
     tip.length = 0.05) +
-  labs(title = "Original: Main Effect of Lyrics", subtitle = "F (1, 30) = 11.81, p < .01", y = "Mean", x = "Presence of Lyrics") +
+  labs(title = "Main effect of lyrics", subtitle = table_lyrics_title, y = "Mean", x = "Presence of lyrics") +
   theme_minimal()  -> me_lyric
 
 me_lyric
@@ -245,12 +278,30 @@ bottom_row <- plot_grid(me_lyric, me_valence, labels = c('B', 'C'))
 top <- plot_grid(me_intended_emotion, labels = 'A')
 cow_fig_1 <- plot_grid(top, bottom_row, ncol = 1)
 
+
+# now add the title
+title_o <- ggdraw() + 
+  draw_label(
+    "Original analyses",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) 
+
+cow_fig_1 <- plot_grid(
+  title_o, cow_fig_1,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+
 ggsave(plot = foo2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1.png")
 ggsave(plot = foo2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1.tiff")
-ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.png")
-ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.tiff")
-
-ggsave(plot = cow_fig_1, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.eps")
+ggsave(plot = cow_fig_1, height = 8, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.png")
+ggsave(plot = cow_fig_1, height = 8, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.tiff")
+ggsave(plot = cow_fig_1, height = 8, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.eps")
+ggsave(plot = cow_fig_1, height = 8, width = 9, dpi = 300, filename = "img/Figures/Figure1_labels.jpeg")
 
 #------------------------------------------------------------------------------------
 
@@ -547,12 +598,16 @@ top_replication <- df_replicate_anova %>%
     tip.length = 0.05) +
     geom_errorbar(aes(ymin = response_mean + response_std, 
                       ymax = response_mean - response_std), width = .25, size = .4) + 
-  labs(title = "Replication: Main Effect of Intended Emotion",
+  labs(title = "Main effect of intended emotion",
        subtitle = "F (2.59, 264.30) = 28.24, p <.001",
-       x = "Emotion", y = "Mean Response")
+       x = "Emotion", y = "Mean response")
+
+bot_left_rep_title <- expression(paste(italic("F"), "(1, 103) = 203.46, ", italic("p")," > .001"))
+
+"F (1, 103) = 203.46, p <.001"
 
 bot_left_replication <- df_replicate_anova %>%
-  mutate(Lyrics = str_replace_all(Lyrics, pattern = "Melody", "No Lyrics")) %>%
+  mutate(Lyrics = str_replace_all(Lyrics, pattern = "Melody", "No lyrics")) %>%
   group_by(Lyrics) %>%
   summarise(
     response_mean = mean(rating),
@@ -567,14 +622,17 @@ bot_left_replication <- df_replicate_anova %>%
   # Significant Ratings Taken From Analysis Below 
   geom_bracket(
     xmin = c("Lyrics"), 
-    xmax = c("No Lyrics"),
-    y.position = c(7), label = c("***"),
+    xmax = c("No lyrics"),
+    y.position = c(7), label = c("list(~italic(p) < .001)"),
+    type = "expression",
     tip.length = 0.05) +
     geom_errorbar(aes(ymin = response_mean + response_std, 
                       ymax = response_mean - response_std),  width = .25, size = .4) + 
-  labs(title = "Replication: Main Effect of Lyrics",
-       subtitle = "F (1, 103) = 203.46, p <.001",
-       x = "Lyrics", y = "Mean Response")
+  labs(title = "Main effect of lyrics",
+       subtitle = bot_left_rep_title,
+       x = "Lyrics", y = "Mean response")
+
+bot_right_rep_title <- expression(paste(italic("F"), "(1, 103) = .04, ", italic("p")," > .05"))
 
 bot_right_rep <- df_replicate_anova %>%
   group_by(global_valence) %>%
@@ -596,19 +654,64 @@ bot_right_rep <- df_replicate_anova %>%
     tip.length = 0.05) +
     geom_errorbar(aes(ymin = response_mean + response_std, 
                       ymax = response_mean - response_std), width = .25, size = .4) + 
-  labs(title = "Replication: Main Effect of Grouped Analysis",
-       subtitle = "F (1, 103) = .04, p > .05",
-       x = "Grouped Analysis", y = "Mean Response")
+  labs(title = "Main effect of grouped analysis",
+       subtitle = bot_right_rep_title,
+       x = "Grouped analysis", y = "Mean response")
+
+
+jg_title <- expression(paste(italic("F"),"(2.59, 264.30) = 28.24, ", italic("p")," <.001"))
+
+top_replication_jg <- df_replicate_anova %>%
+  group_by(Emotion, Lyrics) %>%
+  summarise(
+    response_mean = mean(rating),
+    response_sd = sd(rating),
+    response_std = std(rating)
+  ) %>%
+  ungroup(Emotion,Lyrics) %>%
+  mutate(Lyrics = str_replace_all(string = Lyrics, pattern = "Melody","No lyrics")) %>%
+  ggplot(aes(x = Lyrics, y = response_mean, linetype = Emotion, group = Emotion)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = response_mean - response_std, ymax = response_mean + response_std), width = .1,  linetype = 1) +
+  geom_line() +
+  theme_minimal() +
+  scale_y_continuous( breaks = seq(4,8,1), limits = c(4,8))  +
+  labs(title = "Main effect and interaction of lyrics and emotion",
+        subtitle = jg_title,
+       x = "Condition",
+       y = "Mean response")
+
+top_replication_jg
 
 # Assemble Figure 2
-topper_rep <- plot_grid(top_replication, labels = "A")
+topper_rep <- plot_grid(top_replication_jg, labels = "A")
 bottom_rep <- plot_grid(bot_left_replication, bot_right_rep, labels = c("B","C"))
 figure2 <- plot_grid(topper_rep, bottom_rep, ncol = 1)
 
+
+# now add the title
+title <- ggdraw() + 
+  draw_label(
+    "Replication analyses",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) 
+
+figure_2 <- plot_grid(
+  title, figure2,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+figure_2
+
 # Save Figure 2 
-ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.png")
-ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.tiff")
-ggsave(plot = figure2, height = 6, width = 9, dpi = 300, filename = "img/Figures/Figure2_labels.eps")
+ggsave(plot = figure_2, height = 6, width = 7, dpi = 300, filename = "img/Figures/Figure2_labels.png")
+ggsave(plot = figure_2, height = 6, width = 7, dpi = 300, filename = "img/Figures/Figure2_labels.tiff")
+ggsave(plot = figure_2, height = 6, width = 7, dpi = 300, filename = "img/Figures/Figure2_labels.eps")
+ggsave(plot = figure_2, height = 6, width = 7, dpi = 300, filename = "img/Figures/Figure2_labels.jpeg")
 
 ```
 
@@ -735,7 +838,13 @@ ggsave(filename = "img/Figures/Figure4.tiff", cor_plots_gmsi, units = "cm", dpi 
 df_congruent %>%
   left_join(gmsi_table)  -> model_2_data
 
-hypothesis_2_model <- lmerTest::lmer(rating ~ Condition*response + MUSICAL + EMOTIONS + (1|subject), data = model_2_data)
+model_2_data <- model_2_data %>%
+  rename(`Gold-MSI Musical` = MUSICAL,
+         `Gold-MSI Emotions` = EMOTIONS,
+         Response = response) %>%
+  mutate(Condition = str_replace_all(Condition, pattern = "Melody", replacement = "No lyrics")) 
+
+hypothesis_2_model <- lmerTest::lmer(rating ~ Condition*Response + `Gold-MSI Musical` + `Gold-MSI Emotions` + (1|subject), data = model_2_data)
 
 summary(hypothesis_2_model)
 
